@@ -1,0 +1,157 @@
+# #################################
+# Basic training parameters for digit classification with Xvector
+#
+# Author:
+#  * Mohammad Mahdi Moradi 2021
+# #################################
+
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 1986
+__set_seed: !!python/object/apply:torch.manual_seed [!ref <seed>]
+
+output_folder: !ref ./results/AudioMNIST/CRNN/<seed>
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+
+# Path where data manifest files are stored
+train_annotation: train.json
+valid_annotation: valid.json
+test_annotation: test.json
+
+# The train logger writes training statistics to a file, as well as stdout.
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+error_stats: !name:speechbrain.utils.metric_stats.MetricStats
+    metric: !name:speechbrain.nnet.losses.classification_error
+        reduction: batch
+
+# Feature parameters
+n_mels: 80
+
+## Threshold for Energy computation of loss function
+threshold: 3
+number_of_valid_data: 553
+number_of_test_data: 554
+
+# Training Parameters
+input_channels: 1
+sample_rate: 16000
+number_of_epochs: 600
+batch_size: 2
+sorting: ascending
+lr_linear: 0.001
+lr_cnn: 0.0001
+th_linear: 1.6
+th_cnn: 1.6
+n_classes: 4 # In this case, we have 10 digits
+emb_dim: 128 # dimensionality of the embeddings
+dataloader_options:
+    batch_size: !ref <batch_size>
+
+# Feature extraction
+compute_features: !new:speechbrain.lobes.features.Fbank
+    n_mels: !ref <n_mels>
+
+# Mean and std normalization of the input features
+mean_var_norm: !new:speechbrain.processing.features.InputNormalization
+    norm_type: sentence
+    std_norm: False
+
+
+# Embedding model: from variable size digits gets a fixed size embedding vector
+# Embedding model: from variable size digits gets a fixed size embedding vector
+CNN1: !new:CNN.CNN
+    threshold: !ref <th_cnn>
+    learning_rate: !ref <lr_cnn>
+    in_channels: !ref <input_channels>
+    out_channels: 64
+    kernel_size: 11
+    stride: 4
+    padding: 2
+    max_kernel_size: 3
+    max_stride: 2
+    maxpooling: True
+
+CNN2: !new:CNN.CNN
+    threshold: !ref <th_cnn>
+    learning_rate: !ref <lr_cnn>
+    in_channels: 64
+    out_channels: 192
+    kernel_size: 5
+    stride: 1
+    padding: 2
+    max_kernel_size: 3
+    max_stride: 2
+    maxpooling: True
+
+CNN3: !new:CNN.CNN
+    threshold: !ref <th_cnn>
+    learning_rate: !ref <lr_cnn>
+    in_channels: 192
+    out_channels: 256
+    kernel_size: 5
+    stride: 1
+    padding: 2
+    max_kernel_size: 3
+    max_stride: 2
+    maxpooling: False
+
+Statistical_Pooling: !new:StatisticalPooling.Statistical_Pooling
+    eps: 1e-5
+    return_mean: True
+    return_std: False
+
+# Clasifier applied on top of the embeddings
+Linear1: !new:Linear.Linear
+    threshold: !ref <th_linear>
+    learning_rate: !ref <lr_linear>
+    in_features: 1028
+    out_features: 512
+
+Linear2: !new:Linear.Linear
+    threshold: !ref <th_linear>
+    learning_rate: !ref <lr_linear>
+    in_features: 512
+    out_features: 64
+
+# The first object passed to the Brain class is this "Epoch Counter"
+# which is saved by the Checkpointer so that training can be resumed
+# if it gets interrupted at any point.
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+# Objects in "modules" dict will have their parameters moved to the correct
+# device, as well as having train()/eval() called on them by the Brain class.
+modules:
+    compute_features: !ref <compute_features>
+    mean_var_norm: !ref <mean_var_norm>
+    CNN1: !ref <CNN1>
+    CNN2: !ref <CNN2>
+    CNN3: !ref <CNN3>
+    Statistical_Pooling: !ref <Statistical_Pooling>
+    Linear1: !ref <Linear1>
+    Linear2: !ref <Linear2>
+
+# This optimizer will be constructed by the Brain class after all parameters
+# are moved to the correct device. Then it will be added to the checkpointer.
+
+# This function manages learning rate annealing over the epochs.
+# We here use the simple lr annealing method that linearly decreases
+# the lr from the initial value to the final one.
+
+
+# This object is used for saving the state of training both so that it
+# can be resumed if it gets interrupted, and also so that the best checkpoint
+# can be later loaded for evaluation or inference.
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        CNN1: !ref <CNN1>
+        CNN2: !ref <CNN2>
+        CNN3: !ref <CNN3>
+        Statistical_Pooling: !ref <Statistical_Pooling>
+        Linear1: !ref <Linear1>
+        Linear2: !ref <Linear2>
+        normalizer: !ref <mean_var_norm>
+        counter: !ref <epoch_counter>
