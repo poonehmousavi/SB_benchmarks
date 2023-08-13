@@ -44,7 +44,9 @@ LANGUAGES = {
     "ja" : "ja_jp",
     "tr" : "tr_tr",
     "pl" : "pl_pl",
-    "lg" : "lg_ug"
+    "lg" : "lg_ug",
+    "ckb" : "ckb_iq",
+    "ff" : "ff_sn"
 }
 
 
@@ -321,7 +323,7 @@ def preprocess_tsv_file(
     _LOGGER.info(f"Writing output CSV file ({output_csv_file})...")
     os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
     num_clips, total_duration = 0, 0.0
-    split = os.path.splitext(input_tsv_file)[0].split('/')[1].split("_")[0]
+    split = os.path.splitext(input_tsv_file)[0].split('/')[-1].split("_")[0]
     with open(input_tsv_file, encoding="utf-8") as fr, open(
         output_csv_file, "w", encoding="utf-8"
     ) as fw:
@@ -331,7 +333,7 @@ def preprocess_tsv_file(
         csv_writer.writerow(["ID", "mp3", "wrd", "locale", "duration"])
         for i, row in enumerate(tsv_reader):
             mp3, wrd, locale, duration = row[1], row[3], row[-2], row[-1]
-            id_ = os.path.splitext(mp3)[0]
+            id_ = os.path.splitext(mp3)[0] + locale
 
             mp3 = os.path.join("$data_root", locale,"audio", split, mp3)
             locale = locale.split('_')[0]

@@ -467,7 +467,7 @@ def train(hparams, run_opts):
 
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_common_voice,
+            prepare_fleurs,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],

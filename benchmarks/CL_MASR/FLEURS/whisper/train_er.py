@@ -385,7 +385,7 @@ def train(hparams, run_opts):
         # Get train data from previous tasks
         for old_locale in hparams["base_locales"] + hparams["new_locales"][:i]:
             run_on_main(
-                prepare_common_voice,
+                prepare_fleurs,
                 kwargs={
                     "locales": [old_locale],
                     "data_folder": hparams["data_folder"],
