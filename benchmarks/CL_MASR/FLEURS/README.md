@@ -1,7 +1,7 @@
 # CL-MASR: A Continual Learning Benchmark for Multilingual ASR
 
 This recipe includes scripts to train [Whisper](https://cdn.openai.com/papers/whisper.pdf) and
-[WavLM](https://arxiv.org/abs/2110.13900)-based ASR systems on a subset of 20 languages selected from [Common Voice 13](https://commonvoice.mozilla.org/en/datasets)
+[WavLM](https://arxiv.org/abs/2110.13900)-based ASR systems on a subset of 20 languages selected from [FLEURS](https://huggingface.co/datasets/google/xtreme_s)
 in a continual learning fashion using a handful of methods including rehearsal-based, architecture-based, and regularization-based approaches.
 
 The goal is to continually learn new languages while limiting forgetting the previously learned ones.
@@ -21,7 +21,7 @@ The following algorithms have been implemented so far:
 
 ## ⚡ Dataset [[download](https://zenodo.org/record/8065754)]
 
-The dataset used for the CL-MASR benchmark is extracted from [Common Voice 13](https://commonvoice.mozilla.org/en/datasets) (see [reference paper](https://arxiv.org/abs/1912.06670)).
+The dataset used for the CL-MASR benchmark is extracted from [FLEURS](https://huggingface.co/datasets/google/xtreme_s) (see [reference paper](https://arxiv.org/pdf/2205.12446v1.pdf)).
 Each of the 20 languages in the dataset includes approximately 10 hours of training material, with an additional 1 hour designated for validation and another 1 hour for testing purposes.
 
 Download the dataset from [here](https://zenodo.org/record/8065754) and extract it to a data folder of your choice (`CL-MASR` by default).
@@ -57,7 +57,7 @@ To install and set up the benchmark, follow these steps:
 
 ### Running an experiment
 
-Navigate to `<path-to-repository>/benchmarks/CL_MASR/<model>`, open a terminal and run:
+Navigate to `<path-to-repository>/benchmarks/CL_MASR/FLEURS/<model>`, open a terminal and run:
 
 ```bash
 python train_<cl-method>.py hparams/train_<cl-method>.yaml --data_folder <path-to-data-folder>
