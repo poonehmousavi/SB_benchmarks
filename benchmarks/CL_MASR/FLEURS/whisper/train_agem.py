@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Recipe for fine-tuning a Whisper-based ASR system on Common Voice in a continual
+"""Recipe for fine-tuning a Whisper-based ASR system on FLEURS in a continual
 learning fashion via Averaged Gradient Episodic Memory (https://arxiv.org/abs/1812.00420).
 
 To run this recipe, do the following:
@@ -8,6 +8,7 @@ To run this recipe, do the following:
 
 Authors
  * Luca Della Libera 2023
+ # Pooneh Mousavi 2023
 """
 
 import copy
@@ -26,7 +27,7 @@ import speechbrain as sb
 from speechbrain.dataio.batch import PaddedBatch
 from speechbrain.utils.distributed import run_on_main
 
-from common_voice_prepare import prepare_common_voice
+from fleurs_prepare import prepare_fleurs
 
 
 class ASR(sb.Brain):
@@ -366,7 +367,7 @@ def test(hparams, run_opts, locales, wer_file="wer_test.txt"):
     for locale in locales:
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_common_voice,
+            prepare_fleurs,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],
@@ -459,7 +460,7 @@ def train(hparams, run_opts):
     for i, locale in enumerate(hparams["new_locales"]):
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_common_voice,
+            prepare_fleurs,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],
@@ -507,7 +508,7 @@ def train(hparams, run_opts):
         replay_data.data = {}
         for old_locale in hparams["base_locales"] + hparams["new_locales"][:i]:
             run_on_main(
-                prepare_common_voice,
+                prepare_fleurs,
                 kwargs={
                     "locales": [old_locale],
                     "data_folder": hparams["data_folder"],

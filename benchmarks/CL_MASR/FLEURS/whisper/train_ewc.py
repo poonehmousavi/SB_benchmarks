@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Recipe for fine-tuning a Whisper-based ASR system on Common Voice in a continual
+"""Recipe for fine-tuning a Whisper-based ASR system on FLEURS in a continual
 learning fashion via (online) Elastic Weight Consolidation (https://arxiv.org/abs/1612.00796).
 
 To run this recipe, do the following:
@@ -25,7 +25,7 @@ import speechbrain as sb
 from speechbrain.dataio.batch import PaddedBatch
 from speechbrain.utils.distributed import run_on_main
 
-from common_voice_prepare import prepare_common_voice
+from fleurs_prepare import prepare_fleurs
 
 
 class ASR(sb.Brain):
@@ -211,7 +211,7 @@ def compute_ewc_params(hparams, run_opts, locales):
 
     # Multi-gpu (ddp) save data preparation
     run_on_main(
-        prepare_common_voice,
+        prepare_fleurs,
         kwargs={
             "locales": locales,
             "data_folder": hparams["data_folder"],
@@ -368,7 +368,7 @@ def test(hparams, run_opts, locales, wer_file="wer_test.txt"):
     for locale in locales:
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_common_voice,
+            prepare_fleurs,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],
@@ -486,7 +486,7 @@ def train(hparams, run_opts):
 
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_common_voice,
+            prepare_fleurs,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],

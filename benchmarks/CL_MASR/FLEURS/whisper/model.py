@@ -4,6 +4,7 @@ be progressively extended by adding new tokens.
 
 Authors
  * Luca Della Libera 2023
+ * Pooneh Mousavi 2023
 """
 
 import torch
