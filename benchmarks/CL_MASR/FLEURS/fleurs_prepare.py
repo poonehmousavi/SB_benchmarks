@@ -141,8 +141,8 @@ def prepare_fleurs(
     _LOGGER.info(f"Merging TSV files...")
     for split, max_duration in zip(_SPLITS, max_durations):
         tsv_files = [
-            os.path.join(data_folder, locale, f"{split}_with_duration.tsv")
-            for LANGUAGES[locale] in locales
+            os.path.join(data_folder, LANGUAGES[locale] , f"{split}_with_duration.tsv")
+            for locale in locales
         ]
         merge_tsv_files(
             tsv_files,
@@ -191,7 +191,10 @@ def compute_clip_durations(locale_folder: "str") -> "None":
             tsv_writer = csv.writer(fw, delimiter="\t")
             # header = next(tsv_reader)
             # tsv_writer.writerow(header + ["duration"])
+            seen = set() # set for fast O(1) amortized lookup
             for row in tsv_reader:
+                if row[0] in seen: 
+                    continue # skip duplicate
                 # Remove "\t" and "\"" to not confuse the TSV writer
                 for i in range(len(row)):
                     row[i] = row[i].replace("\t", " ")
@@ -199,6 +202,10 @@ def compute_clip_durations(locale_folder: "str") -> "None":
 
                 mp3 = row[1]
                 mp3 = os.path.join(locale_folder, "audio", split , mp3)
+                
+
+                # NOTE: info returns incorrect num_frames on torchaudio==0.12.x
+                seen.add(row[0])
 
                 # NOTE: info returns incorrect num_frames on torchaudio==0.12.x
                 info = torchaudio.info(mp3)
