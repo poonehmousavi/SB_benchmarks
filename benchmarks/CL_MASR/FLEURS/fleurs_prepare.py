@@ -339,8 +339,8 @@ def preprocess_tsv_file(
         _ = next(tsv_reader)
         csv_writer.writerow(["ID", "mp3", "wrd", "locale", "duration"])
         for i, row in enumerate(tsv_reader):
-            mp3, wrd, locale, duration = row[1], row[3], row[-2], row[-1]
-            id_ = os.path.splitext(mp3)[0] + locale
+            iden, mp3, wrd, locale, duration = row[0] , row[1], row[3], row[-2], row[-1]
+            id_ = os.path.splitext(mp3)[0] + "_" + locale + "_" + iden
 
             mp3 = os.path.join("$data_root", locale,"audio", split, mp3)
             locale = locale.split('_')[0]
