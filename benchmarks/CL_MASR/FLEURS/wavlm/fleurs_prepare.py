@@ -1,1 +1,1 @@
-../FLEURS/fleurs_prepare.py
+../fleurs_prepare.py
