@@ -46,7 +46,8 @@ LANGUAGES = {
     "pl" : "pl_pl",
     "lg" : "lg_ug",
     "ckb" : "ckb_iq",
-    "ff" : "ff_sn"
+    "ff" : "ff_sn",
+    "ar" : "ar_eg"
 }
 
 
