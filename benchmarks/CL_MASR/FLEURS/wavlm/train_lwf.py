@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
-"""Recipe for fine-tuning a WavLM-based ASR system on FLEURS in a continual
-learning fashion via Learning without Forgetting (https://arxiv.org/abs/1606.09282).
+"""Recipe for fine-tuning a WavLM-based ASR system on Common Voice in a continual
+learning fashion via (online) Learning without Forgetting (https://arxiv.org/abs/1606.09282).
 
 To run this recipe, do the following:
 > python train_lwf.py hparams/train_lwf.yaml
 
 Authors
  * Luca Della Libera 2023
- * Pooneh Mousavi 2023
 """
 
 import copy
@@ -26,7 +25,7 @@ from hyperpyyaml import load_hyperpyyaml
 import speechbrain as sb
 from speechbrain.utils.distributed import run_on_main
 
-from fleurs_prepare import prepare_fleurs
+from common_voice_prepare import prepare_common_voice
 
 
 class ASR(sb.Brain):
@@ -250,7 +249,7 @@ def test(hparams, run_opts, locales, wer_file="wer_test.txt"):
     for locale in locales:
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_fleurs,
+            prepare_common_voice,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],
@@ -346,7 +345,7 @@ def train(hparams, run_opts):
 
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_fleurs,
+            prepare_common_voice,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],

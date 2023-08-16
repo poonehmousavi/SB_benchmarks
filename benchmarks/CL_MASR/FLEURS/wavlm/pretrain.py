@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-"""Recipe for pre-training a WavLM-based ASR system on FLEURS.
+"""Recipe for pre-training a WavLM-based ASR system on Common Voice.
 
 To run this recipe, do the following:
 > python pretrain.py hparams/pretrain.yaml
 
 Authors
  * Luca Della Libera 2023
- * Pooneh Mousavi 2023
 """
 
 import logging
@@ -22,7 +21,7 @@ from hyperpyyaml import load_hyperpyyaml
 import speechbrain as sb
 from speechbrain.utils.distributed import run_on_main
 
-from fleurs_prepare import prepare_fleurs
+from common_voice_prepare import prepare_common_voice
 
 
 class ASR(sb.Brain):
@@ -219,7 +218,7 @@ def test(hparams, run_opts, locales, wer_file="wer_test.txt"):
     for locale in locales:
         # Multi-gpu (ddp) save data preparation
         run_on_main(
-            prepare_fleurs,
+            prepare_common_voice,
             kwargs={
                 "locales": [locale],
                 "data_folder": hparams["data_folder"],
@@ -301,7 +300,7 @@ def train(hparams, run_opts):
     """
     # Multi-gpu (ddp) save data preparation
     run_on_main(
-        prepare_fleurs,
+        prepare_common_voice,
         kwargs={
             "locales": hparams["locales"],
             "data_folder": hparams["data_folder"],

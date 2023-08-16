@@ -11,8 +11,8 @@ __set_seed: !apply:torch.manual_seed [!ref <seed>]
 skip_test: False
 
 # Data preparation
-base_locales: [en, zh-CN, de]
-new_locales: [lg, ckb, ff]
+base_locales: [en, zh-CN, de, es, ru, fr, pt, ja, tr, pl]
+new_locales: [rw, eo, kab, lg, mhr, ckb, ab, kmr, fy-NL, ia]
 data_folder: !PLACEHOLDER
 max_durations: [36000, 3600, 3600]  # Maximum total durations in seconds for train, dev, and test splits for each locale
 
@@ -38,7 +38,7 @@ lr: 0.0001
 improvement_threshold: 0.0025
 annealing_factor: 0.8
 
-whisper_variant: whisper-tiny
+whisper_variant: whisper-large-v2
 encoder_only: False
 freeze: False
 freeze_encoder: True
