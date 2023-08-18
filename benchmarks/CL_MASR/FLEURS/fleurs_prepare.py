@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Common Voice data preparation.
+FLEURS data preparation.
 
 Authors
  * Pooeh Mousavi 2023
@@ -17,9 +17,6 @@ from typing import Optional, Sequence
 
 
 import torchaudio
-from tqdm import tqdm
-import soundfile as sf
-from os.path import dirname, abspath
 from speechbrain.utils.data_utils import download_file
 
 __all__ = [
@@ -261,15 +258,11 @@ def merge_tsv_files(
         tsv_writer = csv.writer(
             fw, delimiter="\t", quoting=csv.QUOTE_NONE, escapechar="\\"
         )
-        write_header = False
+
         for input_tsv_file in input_tsv_files:
             _LOGGER.info(f"Reading input TSV file ({input_tsv_file})...")
             with open(input_tsv_file, encoding="utf-8") as fr:
                 tsv_reader = csv.reader(fr, delimiter="\t")
-                # header = next(tsv_reader)
-                # if write_header:
-                #     tsv_writer.writerow(header)
-                #     write_header = False
                 if max_duration == float("inf"):
                     for row in tsv_reader:
                         tsv_writer.writerow(row)
@@ -311,7 +304,7 @@ def merge_tsv_files(
 def preprocess_tsv_file(
     input_tsv_file: "str", output_csv_file: "str",
 ) -> "None":
-    """Apply minimal Common Voice preprocessing (e.g. rename columns, remove unused columns,
+    """Apply minimal Fleurs preprocessing (e.g. rename columns, remove unused columns,
     remove commas, special characters and empty sentences etc.) to each row of an input TSV file.
 
     Arguments
@@ -326,7 +319,7 @@ def preprocess_tsv_file(
     >>> preprocess_tsv_file("data/test_with_duration.tsv", "data/test.csv")
 
     """
-    # Header: client_id path sentence up_votes down_votes age gender accents locale segment duration
+
     _LOGGER.info(f"Reading input TSV file ({input_tsv_file})...")
     _LOGGER.info(f"Writing output CSV file ({output_csv_file})...")
     os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)

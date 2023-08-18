@@ -12,7 +12,7 @@ __set_seed: !apply:torch.manual_seed [!ref <seed>]
 skip_test: False
 
 # Data preparation
-base_locales: [en, ar , de]
+base_locales: [en, ar, de]
 new_locales: [lg, ckb, ff]
 data_folder: !PLACEHOLDER
 max_durations: [36000, 3600, 3600]  # Maximum total durations in seconds for train, dev, and test splits for each locale
