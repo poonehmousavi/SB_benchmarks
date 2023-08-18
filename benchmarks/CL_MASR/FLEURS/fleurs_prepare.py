@@ -34,20 +34,20 @@ logging.basicConfig(
 )
 
 LANGUAGES = {
-    "en" : "en_us" ,
-    "zh-CN" : "cmn_hans_cn",
+    "en": "en_us",
+    "zh-CN": "cmn_hans_cn",
     "de": "de_de",
     "es": "gl_es",
-    "ru" : "ru_ru",
-    "fr" : "fr_fr",
-    "pt" : "pt_br",
-    "ja" : "ja_jp",
-    "tr" : "tr_tr",
-    "pl" : "pl_pl",
-    "lg" : "lg_ug",
-    "ckb" : "ckb_iq",
-    "ff" : "ff_sn",
-    "ar" : "ar_eg"
+    "ru": "ru_ru",
+    "fr": "fr_fr",
+    "pt": "pt_br",
+    "ja": "ja_jp",
+    "tr": "tr_tr",
+    "pl": "pl_pl",
+    "lg": "lg_ug",
+    "ckb": "ckb_iq",
+    "ff": "ff_sn",
+    "ar": "ar_eg",
 }
 
 
@@ -57,8 +57,6 @@ if torchaudio.get_audio_backend() != "sox_io":
 
 
 _LOGGER = logging.getLogger(__name__)
-
-
 
 
 _SPLITS = ["train", "dev", "test"]
@@ -80,6 +78,7 @@ with open(_RANDOM_IDXES_PATH, encoding="utf-8") as f:
 
 # Default seed
 random.seed(0)
+
 
 def prepare_fleurs(
     locales: "Sequence[str]" = ("en",),
@@ -142,7 +141,9 @@ def prepare_fleurs(
     _LOGGER.info(f"Merging TSV files...")
     for split, max_duration in zip(_SPLITS, max_durations):
         tsv_files = [
-            os.path.join(data_folder, LANGUAGES[locale] , f"{split}_with_duration.tsv")
+            os.path.join(
+                data_folder, LANGUAGES[locale], f"{split}_with_duration.tsv"
+            )
             for locale in locales
         ]
         merge_tsv_files(
@@ -192,18 +193,17 @@ def compute_clip_durations(locale_folder: "str") -> "None":
             tsv_writer = csv.writer(fw, delimiter="\t")
             # header = next(tsv_reader)
             # tsv_writer.writerow(header + ["duration"])
-            seen = set() # set for fast O(1) amortized lookup
+            seen = set()  # set for fast O(1) amortized lookup
             for row in tsv_reader:
-                if row[0] in seen: 
-                    continue # skip duplicate
+                if row[0] in seen:
+                    continue  # skip duplicate
                 # Remove "\t" and "\"" to not confuse the TSV writer
                 for i in range(len(row)):
                     row[i] = row[i].replace("\t", " ")
                     row[i] = row[i].replace('"', "")
 
                 mp3 = row[1]
-                mp3 = os.path.join(locale_folder, "audio", split , mp3)
-                
+                mp3 = os.path.join(locale_folder, "audio", split, mp3)
 
                 # NOTE: info returns incorrect num_frames on torchaudio==0.12.x
                 seen.add(row[0])
@@ -212,7 +212,7 @@ def compute_clip_durations(locale_folder: "str") -> "None":
                 info = torchaudio.info(mp3)
                 duration = info.num_frames / info.sample_rate
 
-                tsv_writer.writerow(row + [locale,duration])
+                tsv_writer.writerow(row + [locale, duration])
     _LOGGER.info("Done!")
 
 
@@ -331,7 +331,7 @@ def preprocess_tsv_file(
     _LOGGER.info(f"Writing output CSV file ({output_csv_file})...")
     os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
     num_clips, total_duration = 0, 0.0
-    split = os.path.splitext(input_tsv_file)[0].split('/')[-1].split("_")[0]
+    split = os.path.splitext(input_tsv_file)[0].split("/")[-1].split("_")[0]
     with open(input_tsv_file, encoding="utf-8") as fr, open(
         output_csv_file, "w", encoding="utf-8"
     ) as fw:
@@ -340,11 +340,17 @@ def preprocess_tsv_file(
         _ = next(tsv_reader)
         csv_writer.writerow(["ID", "mp3", "wrd", "locale", "duration"])
         for i, row in enumerate(tsv_reader):
-            iden, mp3, wrd, locale, duration = row[0] , row[1], row[3], row[-2], row[-1]
+            iden, mp3, wrd, locale, duration = (
+                row[0],
+                row[1],
+                row[3],
+                row[-2],
+                row[-1],
+            )
             id_ = os.path.splitext(mp3)[0] + "_" + locale + "_" + iden
 
-            mp3 = os.path.join("$data_root", locale,"audio", split, mp3)
-            locale = locale.split('_')[0]
+            mp3 = os.path.join("$data_root", locale, "audio", split, mp3)
+            locale = locale.split("_")[0]
 
             # Unicode normalization (default in Python 3)
             wrd = str(wrd)
