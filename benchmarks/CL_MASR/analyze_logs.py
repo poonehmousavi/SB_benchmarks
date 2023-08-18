@@ -668,29 +668,38 @@ if __name__ == "__main__":
     parser.add_argument(
         "--im_refs",
         # fmt: off
-        # whisper-large-v2
-        default='{"ab": 64.33, "ckb": 57.51, "eo": 20.14, "fy-NL": 35.01, "ia": 18.70, "kab": 73.57, "kmr": 47.28, "lg": 60.31, "mhr": 37.94, "rw": 69.22}',
-        # wavlm-large
+        # CV-whisper-large-v2
+        # default='{"ab": 64.33, "ckb": 57.51, "eo": 20.14, "fy-NL": 35.01, "ia": 18.70, "kab": 73.57, "kmr": 47.28, "lg": 60.31, "mhr": 37.94, "rw": 69.22}',
+        # CV-wavlm-large
         # default='{"ab": 69.39, "ckb": 69.27, "eo": 36.53, "fy-NL": 52.00, "ia": 53.71, "kab": 83.05, "kmr": 66.22, "lg": 66.81, "mhr": 53.53, "rw": 82.34}',
-        # whisper-tiny
+        # CV-whisper-tiny
         # default='{"ab": 77.22, "ckb": 71.33, "eo": 39.12, "fy-NL": 54.84, "ia": 37.24, "kab": 89.74, "kmr": 63.88, "lg": 74.23, "mhr": 54.08, "rw": 85.24}',
         # fmt: on
+        # FLUERS_whisper-large-v2
+        # default='{"lg": 1.01e+02, "ckb": 77.00, "ff": 72.07}',
+        # FLUERS_wavlm-large
+        default='{"lg": 96.35, "ckb": 81.70, "ff": 74.36}',
         help="intransigence measure references",
     )
+
     parser.add_argument(
         "--fwt_refs",
         # fmt: off
-        # whisper-large-v2
-        default='{"ab": 58.96, "ckb": 54.51, "eo": 18.45, "fy-NL": 28.26, "ia": 15.22, "kab": 64.51, "kmr": 39.84, "lg": 55.72, "mhr": 31.64, "rw": 67.04}',
-        # wavlm-large
+        # CV-whisper-large-v2
+        # default='{"ab": 58.96, "ckb": 54.51, "eo": 18.45, "fy-NL": 28.26, "ia": 15.22, "kab": 64.51, "kmr": 39.84, "lg": 55.72, "mhr": 31.64, "rw": 67.04}',
+        # CV-wavlm-large
         # default='{"ab": 62.31, "ckb": 62.67, "eo": 30.04, "fy-NL": 43.82, "ia": 28.36, "kab": 72.80, "kmr": 50.60, "lg": 58.90, "mhr": 44.69, "rw": 74.70}',
-        # whisper-tiny
+        # CV-whisper-tiny
         # default='{"ab": 70.66, "ckb": 63.18, "eo": 32.21, "fy-NL": 43.84, "ia": 24.74, "kab": 75.08, "kmr": 52.70, "lg": 69.43, "mhr": 45.23, "rw": 85.64}',
         # fmt: on
+        # FLUERS_whisper-large-v2
+        # default='{"lg": 84.17, "ckb": 75.31, "ff": 65.59}',
+        # FLUERS_wavlm-large
+        default='{"lg": 96.35 , "ckb": 81.18 , "ff":  73.78}',
         help="forward transfer references",
     )
     parser.add_argument(
-        "-f", "--format", default="png", help="image format",
+        "-f", "--format", default="pdf", help="image format",
     )
     parser.add_argument(
         "-s",
