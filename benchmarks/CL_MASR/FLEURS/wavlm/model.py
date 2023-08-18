@@ -89,7 +89,7 @@ class ProgressiveWavLM(nn.Module):
             dest_unpack=_TOKENIZER_PATH,
         )
         self.tokenizer = SentencePiece(
-            model_dir=_TOKENIZER_PATH, vocab_size=4887, model_type="char",
+            model_dir=_TOKENIZER_PATH, vocab_size=159, model_type="char",
         ).sp
         vocab_size = self.tokenizer.vocab_size()
         encoder_kwargs = {
