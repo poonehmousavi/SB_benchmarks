@@ -1,0 +1,99 @@
+# #################################
+# Basic training parameters for digit classification with Xvector
+#
+# Author:
+#  * Mirco Ravanelli 2021
+# #################################
+
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 10
+__set_seed: !!python/object/apply:torch.manual_seed [!ref <seed>]
+
+data_folder: ./data/IEMOCAP_only_audio/IEMOCAP_full_release
+output_folder: !ref ./results/emotion_rec/CNN_FF/<seed>
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+
+# Path where data manifest files are stored
+train_annotation: !ref <data_folder>/train.json
+valid_annotation: !ref <data_folder>/valid.json
+test_annotation: !ref <data_folder>/test.json
+split_ratio: [80, 10, 10]
+skip_prep: False
+# different speakers for train, valid and test sets
+different_speakers: False
+# which speaker is used for test set, value from 1 to 10
+test_spk_id: 1
+
+# The train logger writes training statistics to a file, as well as stdout.
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+error_stats: !name:speechbrain.utils.metric_stats.MetricStats
+    metric: !name:speechbrain.nnet.losses.classification_error
+        reduction: batch
+
+
+
+# Feature parameters
+n_mels: 40
+
+# Training Parameters
+sample_rate: 16000
+number_of_epochs: 10
+batch_size: 64
+lr_start: 0.001
+lr_final: 0.0001
+n_classes: 4 # In this case, we have 28 digits
+emb_dim: 128 # dimensionality of the embeddings
+dataloader_options:
+    batch_size: !ref <batch_size>
+
+# Feature extraction
+compute_features: !new:speechbrain.lobes.features.Fbank
+    n_mels: !ref <n_mels>
+
+# Mean and std normalization of the input features
+mean_var_norm: !new:speechbrain.processing.features.InputNormalization
+    norm_type: global
+
+
+# Clasifier applied on top of the embeddings
+# model: !new:model.AudioClassifier_CNN_FF
+
+model: !new:model.Network
+    in_channels: [1,64]
+    out_channels: [64,256]
+    dilations: [1, 1]
+    kernel_sizes: [5,5]
+    paddings: [0,0]
+    strides : [2,1]
+    adaptive:  18
+    out_features :  256
+    n_classes:  !ref <n_classes>
+
+# The first object passed to the Brain class is this "Epoch Counter"
+# which is saved by the Checkpointer so that training can be resumed
+# if it gets interrupted at any point.
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+# Objects in "modules" dict will have their parameters moved to the correct
+# device, as well as having train()/eval() called on them by the Brain class.
+modules:
+    compute_features: !ref <compute_features>
+    mean_var_norm: !ref <mean_var_norm>
+    model: !ref <model>
+
+
+
+
+# This object is used for saving the state of training both so that it
+# can be resumed if it gets interrupted, and also so that the best checkpoint
+# can be later loaded for evaluation or inference.
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        model: !ref <model>
+        normalizer: !ref <mean_var_norm>
+        counter: !ref <epoch_counter>

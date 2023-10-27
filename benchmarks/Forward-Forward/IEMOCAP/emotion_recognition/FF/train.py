@@ -1,83 +1,117 @@
 #!/usr/bin/env python3
-"""Recipe for training an emotion recognition system from speech data only using IEMOCAP.
-The system classifies 4 emotions ( anger, happiness, sadness, neutrality)
-with an ECAPA-TDNN model.
-
-To run this recipe, do the following:
-
-> python train.py hparams/train.yaml --data_folder /path/to/IEMOCAP
-
-Authors
- * Pierre-Yves Yanni 2021
-"""
-
+"Recipe for training a digit classification system."
 import os
 import sys
-import csv
-import speechbrain as sb
 import torch
-from torch.utils.data import DataLoader
-from enum import Enum, auto
-from tqdm.contrib import tqdm
+import torchaudio
+import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
+from speechbrain.utils.distributed import run_on_main
 
-
+# Brain class for speech enhancement training
 class EmoIdBrain(sb.Brain):
+    """Class that manages the training loop. See speechbrain.core.Brain."""
+
     def compute_forward(self, batch, stage):
-        """Computation pipeline based on a encoder + emotion classifier.
+        """Runs all the computations that transforms the input into the
+        output probabilities over the N classes.
+
+        Arguments
+        ---------
+        batch : PaddedBatch
+            This batch object contains all the relevant tensors for computation.
+        stage : sb.Stage
+            One of sb.Stage.TRAIN, sb.Stage.VALID, or sb.Stage.TEST.
+        Returns
+        -------
+        predictions : Tensor
+            Tensor that contains the posterior probabilities over the N classes.
         """
+        # Your code here. Aim for 7-8 lines
+
+        # We first move the batch to the appropriate device.
         batch = batch.to(self.device)
+        labels, _ = batch.emo_encoded
+        labels = labels.squeeze()
+
+        # Unpacking batch
         wavs, lens = batch.sig
 
-        # Feature extraction and normalization
+        # Compute features
         feats = self.modules.compute_features(wavs)
-        feats = self.modules.mean_var_norm(feats, lens)
+        # feats = self.modules.mean_var_norm(feats, lens)
 
-        # Embeddings + speaker classifier
-        embeddings = self.modules.embedding_model(feats, lens)
-        outputs = self.modules.classifier(embeddings)
 
-        return outputs
+        h_pos , h_neg , hyp = None , None , None
+        
+        # Final classification
+        if stage == sb.Stage.TRAIN:
+            x_pos = self.overlay_y_on_x(feats, labels)
+            rnd = torch.randperm(feats.size(0))
+            x_neg = self.overlay_y_on_x(feats, labels[rnd])
+            h_pos, h_neg = self.modules.model.train_layers(x_pos.unsqueeze(1), x_neg.unsqueeze(1))
 
-    def fit_batch(self, batch):
-        """Trains the parameters given a single batch in input"""
+        else:
+            goodness_per_label = []
+            for label in range(hparams['n_classes']):
+                h = self.overlay_y_on_x(feats, torch.tensor([label]))
+                goodness = self.modules.model.predict(h.unsqueeze(1))
+                goodness_per_label += [goodness]
+            goodness_per_label = torch.cat(goodness_per_label, 1)
+            # hyp = goodness_per_label.argmax(1)
+            hyp = goodness_per_label.unsqueeze(1).to(labels.device)
 
-        predictions = self.compute_forward(batch, sb.Stage.TRAIN)
-        loss = self.compute_objectives(predictions, batch, sb.Stage.TRAIN)
+        return h_pos, h_neg , hyp
 
-        # normalize the loss by gradient_accumulation step
-        (loss / self.hparams.gradient_accumulation).backward()
-
-        if self.step % self.hparams.gradient_accumulation == 0:
-            # gradient clipping & early stop if loss is not finite
-            self.check_gradients(loss)
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-        return loss.detach()
 
     def compute_objectives(self, predictions, batch, stage):
-        """Computes the loss using speaker-id as label.
+        """Computes the loss given the predicted and targeted outputs.
+
+        Arguments
+        ---------
+        predictions : tensor
+            The output tensor from `compute_forward`.
+        batch : PaddedBatch
+            This batch object contains all the relevant tensors for computation.
+        stage : sb.Stage
+            One of sb.Stage.TRAIN, sb.Stage.VALID, or sb.Stage.TEST.
+        Returns
+        -------
+        loss : torch.Tensor
+            A one-element tensor used for backpropagating the gradient.
         """
+
+        # Your code here. Aim for 7-8 lines
         _, lens = batch.sig
-        emoid, _ = batch.emo_encoded
+        labels, _ = batch.emo_encoded
+        h_pos, h_neg , hyp = predictions
 
-        # Concatenate labels (due to data augmentation)
-        if stage == sb.Stage.TRAIN:
+        loss = torch.tensor([0])
 
-            if hasattr(self.hparams.lr_annealing, "on_batch_end"):
-                self.hparams.lr_annealing.on_batch_end(self.optimizer)
+        if stage == sb.Stage.TRAIN:                   
+            g_pos = h_pos.pow(2).mean(1)
+            g_neg = h_neg.pow(2).mean(1)
+            loss = torch.log(1 + torch.exp(torch.cat([
+                    -g_pos + self.modules.model.threshold,
+                    g_neg - self.modules.model.threshold]))).mean()
 
-        loss = self.hparams.compute_cost(predictions, emoid, lens)
+        # # Compute the cost function
+        # loss = sb.nnet.losses.nll_loss(predictions, labels)
 
+        # # # Append this batch of losses to the loss metric for easy
+        # if stage != sb.Stage.TRAIN:
+        #     self.loss_metric.append(
+        #         batch.id, predictions, labels, lens, reduction="batch"
+        #     )
+
+        # Compute classification error at test time
         if stage != sb.Stage.TRAIN:
-            self.error_metrics.append(batch.id, predictions, emoid, lens)
+            self.error_metrics.append(batch.id, hyp, labels, lens)
 
         return loss
 
     def on_stage_start(self, stage, epoch=None):
         """Gets called at the beginning of each epoch.
-
         Arguments
         ---------
         stage : sb.Stage
@@ -87,10 +121,10 @@ class EmoIdBrain(sb.Brain):
             `None` during the test stage.
         """
 
-        # Set up statistics trackers for this stage
-        self.loss_metric = sb.utils.metric_stats.MetricStats(
-            metric=sb.nnet.losses.nll_loss
-        )
+        # # Set up statistics trackers for this stage
+        # self.loss_metric = sb.utils.metric_stats.MetricStats(
+        #     metric=sb.nnet.losses.nll_loss
+        # )
 
         # Set up evaluation-only statistics trackers
         if stage != sb.Stage.TRAIN:
@@ -98,7 +132,6 @@ class EmoIdBrain(sb.Brain):
 
     def on_stage_end(self, stage, stage_loss, epoch=None):
         """Gets called at the end of an epoch.
-
         Arguments
         ---------
         stage : sb.Stage
@@ -124,12 +157,11 @@ class EmoIdBrain(sb.Brain):
         # At the end of validation...
         if stage == sb.Stage.VALID:
 
-            old_lr, new_lr = self.hparams.lr_annealing(epoch)
-            sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+
 
             # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
-                {"Epoch": epoch, "lr": old_lr},
+                {"Epoch": epoch,},
                 train_stats={"loss": self.train_loss},
                 valid_stats=stats,
             )
@@ -137,92 +169,35 @@ class EmoIdBrain(sb.Brain):
             # Save the current checkpoint and delete previous checkpoints,
             self.checkpointer.save_and_keep_only(meta=stats, min_keys=["error"])
 
-        # We also write statistics about test data to stdout and to logfile.
+        # We also write statistics about test data to stdout and to the logfile.
         if stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
                 {"Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stats,
             )
-
-    def output_predictions_test_set(
-        self,
-        test_set,
-        max_key=None,
-        min_key=None,
-        progressbar=None,
-        test_loader_kwargs={},
-    ):
-        """Iterate test_set and create output file (id, predictions, true values).
-
-        Arguments
-        ---------
-        test_set : Dataset, DataLoader
-            If a DataLoader is given, it is iterated directly. Otherwise passed
-            to ``self.make_dataloader()``.
-        max_key : str
-            Key to use for finding best checkpoint, passed to
-            ``on_evaluate_start()``.
-        min_key : str
-            Key to use for finding best checkpoint, passed to
-            ``on_evaluate_start()``.
-        progressbar : bool
-            Whether to display the progress in a progressbar.
-        test_loader_kwargs : dict
-            Kwargs passed to ``make_dataloader()`` if ``test_set`` is not a
-            DataLoader. NOTE: ``loader_kwargs["ckpt_prefix"]`` gets
-            automatically overwritten to ``None`` (so that the test DataLoader
-            is not added to the checkpointer).
+    def overlay_y_on_x(self, x, y):
+        """Replace the first 10 pixels of data [x] with one-hot-encoded label [y]
         """
-        if progressbar is None:
-            progressbar = not self.noprogressbar
+        x_ = x.clone()
+        # x_[:,0,-10:] *=  0.0
+        x_[:, 0:4, 0] = x.min()
+        # x_[:, 0, -10:] = x.min()
+        # x_[range(x.shape[0]),0, -10+y] = x.max()
+        x_[range(x.shape[0]), y, 0] = x.max()
+        return x_
 
-        if not isinstance(test_set, DataLoader):
-            test_loader_kwargs["ckpt_prefix"] = None
-            test_set = self.make_dataloader(
-                test_set, Stage.TEST, **test_loader_kwargs
-            )
+    def init_optimizers(self):
+        pass
+    
+    def fit_batch(self, batch):
+        out = self.compute_forward(batch, stage=sb.Stage.TRAIN)
+        loss = self.compute_objectives(out, batch, stage=sb.Stage.TRAIN)
+        return loss.detach().cpu()
+    def evaluate_batch(self, batch,stage):
+        out = self.compute_forward(batch, stage=stage)
+        loss = self.compute_objectives(out, batch, stage=stage)
+        return loss.detach().cpu() 
 
-            save_file = os.path.join(
-                self.hparams.output_folder, "predictions.csv"
-            )
-            with open(save_file, "w", newline="") as csvfile:
-                outwriter = csv.writer(csvfile, delimiter=",")
-                outwriter.writerow(["id", "prediction", "true_value"])
-
-        self.on_evaluate_start(max_key=max_key, min_key=min_key)  # done before
-        self.modules.eval()
-        with torch.no_grad():
-            for batch in tqdm(
-                test_set, dynamic_ncols=True, disable=not progressbar
-            ):
-                self.step += 1
-
-                emo_ids = batch.id
-                true_vals = batch.emo_encoded.data.squeeze(dim=1).tolist()
-                output = self.compute_forward(batch, stage=Stage.TEST)
-                predictions = (
-                    torch.argmax(output, dim=-1).squeeze(dim=1).tolist()
-                )
-
-                with open(save_file, "a", newline="") as csvfile:
-                    outwriter = csv.writer(csvfile, delimiter=",")
-                    for emo_id, prediction, true_val in zip(
-                        emo_ids, predictions, true_vals
-                    ):
-                        outwriter.writerow([emo_id, prediction, true_val])
-
-                # Debug mode only runs a few batches
-                if self.debug and self.step == self.debug_batches:
-                    break
-        self.step = 0
-
-
-class Stage(Enum):
-    """Simple enum to track stage of experiments."""
-
-    TRAIN = auto()
-    VALID = auto()
-    TEST = auto()
 
 
 def dataio_prep(hparams):
@@ -295,25 +270,16 @@ def dataio_prep(hparams):
     return datasets
 
 
-# RECIPE BEGINS!
+
+# Recipe begins!
 if __name__ == "__main__":
 
     # Reading command line arguments.
     hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
 
-    # Initialize ddp (useful only for multi-GPU DDP training).
-    sb.utils.distributed.ddp_init_group(run_opts)
-
     # Load hyperparameters file with command-line overrides.
     with open(hparams_file) as fin:
-        hparams = load_hyperpyyaml(fin, overrides)
-
-    # Create experiment directory
-    sb.create_experiment_directory(
-        experiment_directory=hparams["output_folder"],
-        hyperparams_to_save=hparams_file,
-        overrides=overrides,
-    )
+        hparams = load_hyperpyyaml(fin,  overrides)
 
     from iemocap_prepare import prepare_data  # noqa E402
 
@@ -332,14 +298,13 @@ if __name__ == "__main__":
                 "seed": hparams["seed"],
             },
         )
-
     # Create dataset objects "train", "valid", and "test".
     datasets = dataio_prep(hparams)
 
     # Initialize the Brain object to prepare for mask training.
     emo_id_brain = EmoIdBrain(
         modules=hparams["modules"],
-        opt_class=hparams["opt_class"],
+        # opt_class=hparams["opt_class"],
         hparams=hparams,
         run_opts=run_opts,
         checkpointer=hparams["checkpointer"],
@@ -359,13 +324,6 @@ if __name__ == "__main__":
 
     # Load the best checkpoint for evaluation
     test_stats = emo_id_brain.evaluate(
-        test_set=datasets["test"],
-        min_key="error",
-        test_loader_kwargs=hparams["dataloader_options"],
-    )
-
-    # Create output file with predictions
-    emo_id_brain.output_predictions_test_set(
         test_set=datasets["test"],
         min_key="error",
         test_loader_kwargs=hparams["dataloader_options"],
