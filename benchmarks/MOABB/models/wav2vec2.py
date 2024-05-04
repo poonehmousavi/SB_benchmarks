@@ -1,69 +1,67 @@
 import torch
-from transformers import Wav2Vec2Config, Wav2Vec2Model
-from typing import Optional, Tuple, Union
+from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor, Wav2Vec2Model
 
 
-class wav2vec2(torch.nn.Module):
-    """This lobe enables the integration of HuggingFace and SpeechBrain
-    pretrained wav2vec2.0models.
+class Wav2Vec2ForFinetuning(torch.nn.Module):
+    """
+    Integration of HuggingFace's pretrained wav2vec2.0 models with the ability
+    to use as a fixed feature extractor or for finetuning.
 
-    Source paper wav2vec2.0: https://arxiv.org/abs/2006.11477
-    Source paper Hubert: https://arxiv.org/abs/2106.07447
-    Transformer from HuggingFace needs to be installed:
-    https://huggingface.co/transformers/installation.html
+    Parameters
+    ----------
+    max_duration_in_seconds : int
+        number of seconds to consider for padding (should be same as pretraining)
+    model_name_or_path : str
+        Local path to the EEG pretrained checkpoints.
+    random_init : bool, optional
+        If True, initializes the model with random weights, else uses pretrained weights (default: False).
+    freeze : bool, optional
+        If True, the model's weights are frozen (default: True).
 
-    The model can be used as a fixed feature extractor or can be finetuned. It
-    will download automatically the model from HuggingFace or use a local path.
-
-    Arguments
-    ---------
-    source : str
-        HuggingFace hub name: e.g "facebook/wav2vec2-large-lv60"
-    save_path : str
-        Path (dir) of the downloaded model.
-    freeze : bool (default: True)
-        If True, the model is frozen. If False, the model will be trained
-        alongside with the rest of the pipeline.
-    freeze_feature_extractor :  bool (default: False)
-        When freeze = False and freeze_feature_extractor True, the featue_extractor module of the model is Frozen. If False
-        all the wav2vec model will be trained including featue_extractor module.    freeze_feature_extractor :  bool (default: False)
-        When freeze = False and freeze_feature_extractor True, the featue_extractor module of the model is Frozen. If False
-        all the wav2vec model will be trained including featue_extractor module.
-    output_all_hiddens : bool (default: False)
-        If True, the forward function outputs the hidden states from all transformer layers.
-        For example wav2vec2-base has 12 transformer layers and the output is of shape (13, B, T, C),
-        where a projection of the CNN output is added to the beginning.
-        If False, the forward function outputs the hidden states only from the last transformer layer.
-
-    Example
-    -------
-    >>> source = "facebook/wav2vec2-base-960h"
-    >>> save_path= "tmp"
-    >>> random_init=False
-    >>> freeze=True
-    >>> freeze_feature_extractor=False
-    >>> output_all_hiddens=False
-    >>> model = wav2vec2(source,save_path ,random_init,freeze,freeze_feature_extractor,output_all_hiddens)
+    Examples
+    --------
+    >>> model = Wav2Vec2ForFinetuning(model_name_or_path, random_init=False, freeze=True)
     >>> inputs = torch.rand([10, 600])
     >>> outputs = model(inputs)
-    torch.Size([10, 1, 768])
     """
-    def __init__(self, source, save_path,random_init=False, freeze=True, freeze_feature_extractor=False,output_all_hiddens=False):
-        super(wav2vec2, self).__init__()
-        
+
+    def __init__(
+        self,
+        model_name_or_path,
+        max_duration_in_seconds,
+        random_init=False,
+        freeze=True,
+    ):
+        super(Wav2Vec2ForFinetuning, self).__init__()
+
+        self.max_duration_in_seconds = max_duration_in_seconds
+        self.model_name_or_path = model_name_or_path
         self.freeze = freeze
-        self.output_all_hiddens= output_all_hiddens
-        
+        # get the model config used when initializing random model
+        self.config = Wav2Vec2Config.from_pretrained(self.model_name_or_path)
+        # initialize feature extractor
+        self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+            self.model_name_or_path
+        )
+
         if random_init:
-            configuration = Wav2Vec2Config()
-            # Initializing a model (with random weights) from the facebook/wav2vec2-base-960h style configuration
-            self.model = Wav2Vec2Model(configuration)
+            # Initializing a model (with random weights) from the model_name_or_path style configuration
+            self.model = Wav2Vec2Model(config=self.config)
         else:
-            self.model  = Wav2Vec2Model.from_pretrained(source,cache_dir=save_path,)
-        
+            # Initializing a model (with pretrained weights) from the model_name_or_path style configuration
+            self.model = Wav2Vec2Model.from_pretrained(self.model_name_or_path)
+
         if freeze:
-            self.freeze_model(self.model )
-    
+            self.freeze_model(self.model)
+            assert (
+                sum(
+                    p.numel()
+                    for p in self.model.parameters()
+                    if p.requires_grad
+                )
+                == 0
+            ), "Model Not Frozen"
+
     def freeze_model(self, model):
         """
         Freezes parameters of a model.
@@ -78,28 +76,66 @@ class wav2vec2(torch.nn.Module):
         for param in model.parameters():
             param.requires_grad = False
 
-    def forward(self,  input_values: Optional[torch.Tensor],
-        attention_mask: Optional[torch.Tensor] = None,
-        mask_time_indices: Optional[torch.FloatTensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None):
-        with torch.set_grad_enabled(not self.freeze):
-            out = self.model(input_values=input_values,
-                                attention_mask=attention_mask,
-                                mask_time_indices= mask_time_indices,
-                                output_attentions=output_attentions,
-                                output_hidden_states=output_hidden_states)
-        if self.output_all_hiddens:
-            out = torch.stack(list(out.hidden_states), dim=0)
-        else:
-            out = out.last_hidden_state
+    def forward(self, features, padding="max_length", pad_to_multiple_of=None):
+        """
+        Forward pass of the finetuning model.
 
-        return out
-    
-source = "facebook/wav2vec2-base-960h"
-save_path= "tmp"
-model = wav2vec2(source,save_path ,random_init=True,freeze=True,output_all_hiddens=False)
-inputs = torch.rand([10, 600])
-outputs = model(inputs)
-print(outputs.shape)
+        Parameters:
+        -----------
+        features : dict or Tensor
+            Either a dictionary containing the key 'input_values', or a raw Tensor with input samples.
+        padding : bool or str, optional
+            Determines the padding strategy. True or 'longest' will pad to the longest in the batch.
+        pad_to_multiple_of : int, optional
+            If set, pads the sequence to a multiple of the provided value.
+
+        Returns:
+        --------
+        torch.Tensor
+            The output from the Wav2Vec2 model.
+        """
+
+        # Ensure the input is in the right format for padding
+        if isinstance(features, dict) and "input_values" in features:
+            input_values = features["input_values"]
+        elif isinstance(features, torch.Tensor):
+            input_values = features
+        else:
+            raise ValueError(
+                "Features should be either a dict with 'input_values' or a raw Tensor."
+            )
+
+        max_length = int(
+            self.max_duration_in_seconds * self.feature_extractor.sampling_rate
+        )
+        # pad the inputs to match the pretraining
+        features = self.feature_extractor.pad(
+            {"input_values": input_values},
+            padding=padding,
+            max_length=max_length,
+            pad_to_multiple_of=pad_to_multiple_of,
+            return_tensors="pt",
+        )
+        outputs = self.model(features["input_values"])
+        return outputs.last_hidden_state
+
+
+if __name__ == "__main__":
+    model_name_or_path = (
+        "/home/mila/h/hussein-mohamu.jama/scratch/brain-wave-bank/ckpts"
+    )
+
+    # Instantiate the finetuning model
+    model = Wav2Vec2ForFinetuning(
+        model_name_or_path,
+        max_duration_in_seconds=5,
+        random_init=True,
+        freeze=False,
+    )
+
+    # Simulate input data
+    inputs = torch.rand([10, 600])  # Example random input tensor
+    outputs = model(inputs)
+
+    # Print the shape of the output tensor
+    print(outputs.shape)
