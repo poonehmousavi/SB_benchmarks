@@ -159,4 +159,3 @@ class eegFinetuneModel(torch.nn.Module):
         h = self.x_vector(feats).squeeze(1)
         logits = self.classifier(h)
         return logits
-    
