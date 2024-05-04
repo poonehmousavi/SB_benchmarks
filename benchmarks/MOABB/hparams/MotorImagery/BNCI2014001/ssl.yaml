@@ -133,13 +133,13 @@ att_hidden_dim : 128
 # SSL Configuration
 source : "facebook/wav2vec2-base-960h"
 ssl_save_path: "tmp"
-random_ini: False
+random_init: False
 freeze: True
 output_all_hiddens: False
-
+skip_init: True
 ssl_model: !new:models.wav2vec2.wav2vec2
     source: !ref <source>
-    ssl_save_path: !ref <ssl_save_path>
+    save_path: !ref <ssl_save_path>
     random_init: !ref <random_init>
     freeze:  !ref <freeze>
     output_all_hiddens: !ref <output_all_hiddens>
@@ -171,6 +171,6 @@ classifier: !new:speechbrain.lobes.models.Xvector.Classifier
 model: !new:models.custommodel.CustomModel
     ssl_model : !ref <ssl_model>
     attention_mlp : !ref <attention_mlp>
-    x_vector : !ref <x_vector>
+    x_vector : !ref <embedding_model>
     classifier : !ref <classifier>
 

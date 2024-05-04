@@ -24,6 +24,11 @@ class wav2vec2(torch.nn.Module):
     freeze : bool (default: True)
         If True, the model is frozen. If False, the model will be trained
         alongside with the rest of the pipeline.
+    freeze_feature_extractor :  bool (default: False)
+        When freeze = False and freeze_feature_extractor True, the featue_extractor module of the model is Frozen. If False
+        all the wav2vec model will be trained including featue_extractor module.    freeze_feature_extractor :  bool (default: False)
+        When freeze = False and freeze_feature_extractor True, the featue_extractor module of the model is Frozen. If False
+        all the wav2vec model will be trained including featue_extractor module.
     output_all_hiddens : bool (default: False)
         If True, the forward function outputs the hidden states from all transformer layers.
         For example wav2vec2-base has 12 transformer layers and the output is of shape (13, B, T, C),
@@ -36,13 +41,14 @@ class wav2vec2(torch.nn.Module):
     >>> save_path= "tmp"
     >>> random_init=False
     >>> freeze=True
+    >>> freeze_feature_extractor=False
     >>> output_all_hiddens=False
-    >>> model = wav2vec2(source,save_path ,random_init,freeze,output_all_hiddens)
+    >>> model = wav2vec2(source,save_path ,random_init,freeze,freeze_feature_extractor,output_all_hiddens)
     >>> inputs = torch.rand([10, 600])
     >>> outputs = model(inputs)
     torch.Size([10, 1, 768])
     """
-    def __init__(self, source, save_path,random_init=False, freeze=True,output_all_hiddens=False):
+    def __init__(self, source, save_path,random_init=False, freeze=True, freeze_feature_extractor=False,output_all_hiddens=False):
         super(wav2vec2, self).__init__()
         
         self.freeze = freeze
