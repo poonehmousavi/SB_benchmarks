@@ -129,23 +129,19 @@ input_shape: [null, !ref <T>, !ref <C>, null]
 ssl_dim: 768
 emb_dim: 512
 att_hidden_dim : 128
+max_duration_in_seconds : 5
 
 # SSL Configuration
-source : "facebook/wav2vec2-base-960h"
-ssl_save_path: "tmp"
+model_name_or_path : "/brain-wave-bank/ckpts"
 random_init: False
 freeze: True
-output_all_hiddens: False
-skip_init: True
-ssl_model: !new:models.wav2vec2.wav2vec2
-    source: !ref <source>
-    save_path: !ref <ssl_save_path>
+ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
+    model_name_or_path: !ref <model_name_or_path>
+    max_duration_in_seconds: !ref <max_duration_in_seconds>
     random_init: !ref <random_init>
     freeze:  !ref <freeze>
-    output_all_hiddens: !ref <output_all_hiddens>
 
-
-attention_mlp: !new:models.custommodel.AttentionMLP
+attention_mlp: !new:models.EEGfinetune.AttentionMLP
     input_dim: !ref <ssl_dim>
     hidden_dim: !ref <att_hidden_dim>
 
@@ -168,7 +164,7 @@ classifier: !new:speechbrain.lobes.models.Xvector.Classifier
     out_neurons: !ref <n_classes>
 
 
-model: !new:models.custommodel.CustomModel
+model: !new:models.EEGfinetune.eegFinetuneModel
     ssl_model : !ref <ssl_model>
     attention_mlp : !ref <attention_mlp>
     x_vector : !ref <embedding_model>
