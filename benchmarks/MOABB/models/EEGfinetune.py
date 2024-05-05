@@ -116,7 +116,8 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
             pad_to_multiple_of=pad_to_multiple_of,
             return_tensors="pt",
         )
-        outputs = self.model(features["input_values"])
+        device = self.model.device
+        outputs = self.model(features["input_values"].to(device))
         return outputs.last_hidden_state
 
 
@@ -144,21 +145,45 @@ class eegFinetuneModel(torch.nn.Module):
         self.classifier = classifier
 
     def forward(self, x):
-        """Returns the output of the model.
+        """Processes EEG data through a pipeline of operations including SSL feature extraction, attention, and classification.
 
-        Arguments
-        ---------
-        x : torch.Tensor (batch, time, EEG channel, channel)
-            Input to convolve. 4d tensors are expected.
+        Parameters:
+        -----------
+        x : torch.Tensor
+            Input tensor with shape (batch, time, EEG channel, channel)
+
+        Returns:
+        --------
+        torch.Tensor
+            The logits output from the classifier with shape (batch, num_classes)
         """
+        # Reshape and permute input for SSL model processing
         bs, t, chann, _ = x.size()
-        permuted_x = x.permute(0, 2, 1, 3)
-        fts_reshaped = permuted_x.reshape(bs * chann, t)
-        feats = self.ssl_model(fts_reshaped)
-        feats_reshaped = feats.reshape(bs, chann, -1, feats.shape[-1])
-        feats = feats_reshaped.permute(0, 2, 1, 3)
-        att_w = self.attention_mlp(feats)
-        feats = torch.matmul(att_w.transpose(2, -1), feats).squeeze(-2)
-        h = self.x_vector(feats).squeeze(1)
-        logits = self.classifier(h)
+        permuted_x = self._prepare_for_ssl_model(x, bs, t, chann)
+        
+        # Apply SSL model to extract features
+        feats = self.ssl_model(permuted_x)
+        
+        # Process channels with attention mechanism
+        attended_feats = self._apply_attention(feats, bs, chann)
+        
+        # Process sequence with x_vector and Final classification
+        logits = self._classify(attended_feats)
         return logits
+
+    def _prepare_for_ssl_model(self, x, bs, t, chann):
+        """Permutes and reshapes the input tensor for processing by the SSL model."""
+        permuted_x = x.permute(0, 2, 1, 3)
+        return permuted_x.reshape(bs * chann, t)
+
+    def _apply_attention(self, feats, bs, chann):
+        """Applies attention mechanism to the features."""
+        feats = feats.reshape(bs, chann, -1, feats.shape[-1])
+        feats = feats.permute(0, 2, 1, 3)
+        att_w = self.attention_mlp(feats)
+        return torch.matmul(att_w.transpose(2, -1), feats).squeeze(-2)
+
+    def _classify(self, feats):
+        """Passes the features through x-vector and classifier to get final logits."""
+        h = self.x_vector(feats).squeeze(1)
+        return self.classifier(h)
