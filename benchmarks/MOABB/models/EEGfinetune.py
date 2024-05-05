@@ -20,7 +20,7 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
 
     Examples
     --------
-    >>> model = Wav2Vec2ForFinetuning(model_name_or_path, random_init=False, freeze=True)
+    >>> model = Wav2Vec2ForFinetuning(model_name_or_path, max_duration_in_seconds, random_init=False, freeze=True)
     >>> inputs = torch.rand([10, 600])
     >>> outputs = model(inputs)
     """
@@ -151,11 +151,14 @@ class eegFinetuneModel(torch.nn.Module):
         x : torch.Tensor (batch, time, EEG channel, channel)
             Input to convolve. 4d tensors are expected.
         """
-        bs, c, t, _ = x.size()
-        feats = self.ssl_model(x.permute(0, 2, 1, 3).reshape(bs * c, t))
-        feats = feats.reshape(bs, c, -1, feats.shape[-1]).permute(0, 2, 1, 3)
+        bs, t, chann, _ = x.size()
+        permuted_x = x.permute(0, 2, 1, 3)
+        fts_reshaped = permuted_x.reshape(bs * chann, t)
+        feats = self.ssl_model(fts_reshaped)
+        feats_reshaped = feats.reshape(bs, chann, -1, feats.shape[-1])
+        feats = feats_reshaped.permute(0, 2, 1, 3)
         att_w = self.attention_mlp(feats)
-        feats = torch.matmul(att_w.transpose(2, -1), x).squeeze(-2)
+        feats = torch.matmul(att_w.transpose(2, -1), feats).squeeze(-2)
         h = self.x_vector(feats).squeeze(1)
         logits = self.classifier(h)
         return logits
