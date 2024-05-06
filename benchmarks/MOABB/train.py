@@ -84,7 +84,7 @@ class MOABBBrain(sb.Brain):
     def on_fit_start(self,):
         """Gets called at the beginning of ``fit()``"""
         if 'skip_init' in hparams and not hparams['skip_init']:
-          self.init_model(self.hparams.model)
+            self.init_model(self.hparams.model)
         self.init_optimizers()
         in_shape = (
             (1,)

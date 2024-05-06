@@ -160,13 +160,10 @@ class eegFinetuneModel(torch.nn.Module):
         # Reshape and permute input for SSL model processing
         bs, t, chann, _ = x.size()
         permuted_x = self._prepare_for_ssl_model(x, bs, t, chann)
-        
         # Apply SSL model to extract features
         feats = self.ssl_model(permuted_x)
-        
         # Process channels with attention mechanism
         attended_feats = self._apply_attention(feats, bs, chann)
-        
         # Process sequence with x_vector and Final classification
         logits = self._classify(attended_feats)
         return logits
