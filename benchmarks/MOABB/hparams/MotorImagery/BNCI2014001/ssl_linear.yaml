@@ -127,9 +127,9 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
 ssl_dim: 768
-emb_dim: 512
 att_hidden_dim : 128
 max_duration_in_seconds : 5
+dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
 
 # SSL Configuration
 model_name_or_path : "/brain-wave-bank/ckpts"
@@ -145,28 +145,11 @@ attention_mlp: !new:models.EEGfinetune.AttentionMLP
     input_dim: !ref <ssl_dim>
     hidden_dim: !ref <att_hidden_dim>
 
-# Embedding model: from variable size digits gets a fixed size embedding vector
-embedding_model: !new:speechbrain.lobes.models.Xvector.Xvector
-    in_channels: !ref <ssl_dim>
-    activation: !name:torch.nn.LeakyReLU
-    tdnn_blocks: 5
-    tdnn_channels: [512, 512, 512, 512, 1500]
-    tdnn_kernel_sizes: [5, 3, 3, 1, 1]
-    tdnn_dilations: [1, 2, 3, 1, 1]
-    lin_neurons: !ref <emb_dim>
 
-# Clasifier applied on top of the embeddings
-classifier: !new:speechbrain.lobes.models.Xvector.Classifier
-    input_shape: [null, null, !ref <emb_dim>]
-    activation: !name:torch.nn.LeakyReLU
-    lin_blocks: 1
-    lin_neurons: !ref <emb_dim>
-    out_neurons: !ref <n_classes>
-
-
-model: !new:models.EEGfinetune.eegFinetuneModel
+eeg_linearFinetuneModel: !new:models.EEGfinetune.eegFinetuneModel
     ssl_model : !ref <ssl_model>
     attention_mlp : !ref <attention_mlp>
-    x_vector : !ref <embedding_model>
-    classifier : !ref <classifier>
+    out_neurons: !ref <n_classes>
+    input_shape: !ref <input_shape>
+    dense_max_norm: !ref <dense_max_norm>
 
