@@ -164,9 +164,8 @@ classifier: !new:speechbrain.lobes.models.Xvector.Classifier
     out_neurons: !ref <n_classes>
 
 
-model: !new:models.EEGfinetune.eegFinetuneModel
+model: !new:models.EEGfinetune.eeg_xvectorFinetuneModel
     ssl_model : !ref <ssl_model>
     attention_mlp : !ref <attention_mlp>
     x_vector : !ref <embedding_model>
     classifier : !ref <classifier>
-
