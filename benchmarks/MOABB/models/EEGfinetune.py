@@ -1,5 +1,5 @@
-import torch
 import speechbrain as sb
+import torch
 from transformers import Wav2Vec2Config, Wav2Vec2FeatureExtractor, Wav2Vec2Model
 
 
@@ -188,13 +188,20 @@ class eeg_xvectorFinetuneModel(torch.nn.Module):
 
 
 class eeg_linearFinetuneModel(torch.nn.Module):
-    def __init__(self, ssl_model, attention_mlp, input_shape,dense_max_norm,out_n_neurons):
+    def __init__(
+        self,
+        ssl_model,
+        attention_mlp,
+        input_shape,
+        dense_max_norm,
+        out_n_neurons,
+    ):
         super(eeg_linearFinetuneModel, self).__init__()
         self.ssl_model = ssl_model
         self.attention_mlp = attention_mlp
 
-        _, t, chann, _ = input_shape 
-        temp_sample= torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
+        _, t, chann, _ = input_shape
+        temp_sample = torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
         permuted_x = self._prepare_for_ssl_model(temp_sample, 1, t, chann)
         # Apply SSL model to extract features
         feats = self.ssl_model(permuted_x)
@@ -204,7 +211,8 @@ class eeg_linearFinetuneModel(torch.nn.Module):
         # DENSE MODULE
         self.dense_module = torch.nn.Sequential()
         self.dense_module.add_module(
-            "flatten", torch.nn.Flatten(),
+            "flatten",
+            torch.nn.Flatten(),
         )
         self.dense_module.add_module(
             "fc_out",
@@ -215,7 +223,6 @@ class eeg_linearFinetuneModel(torch.nn.Module):
             ),
         )
         self.dense_module.add_module("act_out", torch.nn.LogSoftmax(dim=1))
-
 
     def forward(self, x):
         """Processes EEG data through a pipeline of operations including SSL feature extraction, attention, and classification.
