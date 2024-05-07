@@ -30,25 +30,85 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
         self,
         model_name_or_path,
         max_duration_in_seconds,
-        random_init=False,
-        freeze=True,
+        random_init,
+        freeze,
+        sampling_rate=128,
+        do_stable_layer_norm=True,
+        feat_extract_norm="layer",
+        num_feat_extract_layers=7,
+        conv_dim=[512, 512, 512, 512, 512, 512, 512],
+        conv_kernel=[10, 3, 3, 3, 3, 2, 2],
+        conv_stride=[5, 2, 2, 2, 2, 2, 2],
+        num_hidden_layers=12,
+        hidden_size=768,
+        num_attention_heads=12,
+        intermediate_size=3072,
+        num_conv_pos_embeddings=128,
+        tdnn_dim=[512, 512, 512, 512, 1500],
+        tdnn_kernel=[5, 3, 3, 1, 1],
+        num_codevectors_per_group=320,
     ):
         super(Wav2Vec2ForFinetuning, self).__init__()
 
         self.max_duration_in_seconds = max_duration_in_seconds
         self.model_name_or_path = model_name_or_path
         self.freeze = freeze
-        # get the model config used when initializing random model
-        self.config = Wav2Vec2Config.from_pretrained(self.model_name_or_path)
-        # initialize feature extractor
-        self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
-            self.model_name_or_path
-        )
 
         if random_init:
+            print(
+                f"***** Initializing the model randomly from {self.model_name_or_path} as a base *****"
+            )
+            assert (
+                len(conv_dim)
+                == len(conv_kernel)
+                == len(conv_stride)
+                == num_feat_extract_layers
+            ), "dim mismatch, num_feat_extract_layers == len(conv_dim) == len(conv_kernel) == len(conv_stride)"
+            assert len(tdnn_dim) == len(
+                tdnn_kernel
+            ), "dim mismatch, len(tdnn_dim) == len(tdnn_kernel)"
+            if freeze:
+                raise ValueError(
+                    "freeze should be False for random initialized model"
+                )
+            # get the model config used when initializing random model
+            self.config = Wav2Vec2Config.from_pretrained(
+                self.model_name_or_path,
+                do_stable_layer_norm=do_stable_layer_norm,
+                feat_extract_norm=feat_extract_norm,
+                num_feat_extract_layers=num_feat_extract_layers,
+                conv_dim=conv_dim,
+                conv_kernel=conv_kernel,
+                conv_stride=conv_stride,
+                num_hidden_layers=num_hidden_layers,
+                hidden_size=hidden_size,
+                num_attention_heads=num_attention_heads,
+                intermediate_size=intermediate_size,
+                num_conv_pos_embeddings=num_conv_pos_embeddings,
+                tdnn_dim=tdnn_dim,
+                tdnn_kernel=tdnn_kernel,
+                num_codevectors_per_group=num_codevectors_per_group,
+            )
+            # initialize feature extractor
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+                self.model_name_or_path,
+                do_normalize=True,
+                sampling_rate=sampling_rate,
+            )
             # Initializing a model (with random weights) from the model_name_or_path style configuration
             self.model = Wav2Vec2Model(config=self.config)
         else:
+            print(
+                f"***** Initializing the model from pretrained {self.model_name_or_path} checkpoint *****"
+            )
+            # get the model config used when initializing random model
+            self.config = Wav2Vec2Config.from_pretrained(
+                self.model_name_or_path
+            )
+            # initialize feature extractor
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+                self.model_name_or_path
+            )
             # Initializing a model (with pretrained weights) from the model_name_or_path style configuration
             self.model = Wav2Vec2Model.from_pretrained(self.model_name_or_path)
 

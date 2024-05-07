@@ -71,7 +71,7 @@ optimizer: !name:torch.optim.Adam
     lr: !ref <lr>
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter  # epoch counter
     limit: !ref <number_of_epochs>
-batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
+batch_size_exponent: 2 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
 batch_size: !ref 2 ** <batch_size_exponent>
 valid_ratio: 0.2
 
@@ -129,17 +129,47 @@ input_shape: [null, !ref <T>, !ref <C>, null]
 ssl_dim: 768
 emb_dim: 512
 att_hidden_dim : 128
-max_duration_in_seconds : 5
 
 # SSL Configuration
-model_name_or_path : "/brain-wave-bank/ckpts"
-random_init: False
-freeze: True
+max_duration_in_seconds : 5
+model_name_or_path : "facebook/wav2vec2-base-960h"
+random_init: True
+freeze: False
+sampling_rate: 128
+do_stable_layer_norm: True
+feat_extract_norm: "layer"
+num_feat_extract_layers: 2
+conv_dim: [512, 512]
+conv_kernel: [3, 3]
+conv_stride: [1, 1]
+num_hidden_layers: 4
+hidden_size: !ref <ssl_dim>
+num_attention_heads: 4
+intermediate_size: 768
+num_conv_pos_embeddings: 64
+tdnn_dim: [256, 256]
+tdnn_kernel: [3, 2]
+num_codevectors_per_group: 160
 ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
     model_name_or_path: !ref <model_name_or_path>
     max_duration_in_seconds: !ref <max_duration_in_seconds>
     random_init: !ref <random_init>
     freeze:  !ref <freeze>
+    sampling_rate: !ref <sampling_rate>
+    do_stable_layer_norm: !ref <do_stable_layer_norm>
+    feat_extract_norm:  !ref <feat_extract_norm>
+    num_feat_extract_layers: !ref <num_feat_extract_layers>
+    conv_dim: !ref <conv_dim>
+    conv_kernel:  !ref <conv_kernel>
+    conv_stride: !ref <conv_stride>
+    num_hidden_layers:  !ref <num_hidden_layers>
+    hidden_size: !ref <hidden_size>
+    num_attention_heads:  !ref <num_attention_heads>
+    intermediate_size: !ref <intermediate_size>
+    num_conv_pos_embeddings:  !ref <num_conv_pos_embeddings>
+    tdnn_dim: !ref <tdnn_dim>
+    tdnn_kernel:  !ref <tdnn_kernel>
+    num_codevectors_per_group:  !ref <num_codevectors_per_group>
 
 attention_mlp: !new:models.EEGfinetune.AttentionMLP
     input_dim: !ref <ssl_dim>
@@ -149,10 +179,10 @@ attention_mlp: !new:models.EEGfinetune.AttentionMLP
 embedding_model: !new:speechbrain.lobes.models.Xvector.Xvector
     in_channels: !ref <ssl_dim>
     activation: !name:torch.nn.LeakyReLU
-    tdnn_blocks: 5
-    tdnn_channels: [512, 512, 512, 512, 1500]
-    tdnn_kernel_sizes: [5, 3, 3, 1, 1]
-    tdnn_dilations: [1, 2, 3, 1, 1]
+    tdnn_blocks: 2
+    tdnn_channels: [128, 128]
+    tdnn_kernel_sizes: [5, 3]
+    tdnn_dilations: [1, 2]
     lin_neurons: !ref <emb_dim>
 
 # Clasifier applied on top of the embeddings
