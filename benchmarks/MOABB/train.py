@@ -14,6 +14,8 @@ Mirco Ravanelli, 2023
 
 import pickle
 import os
+import datetime
+import wandb
 import torch
 from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
@@ -81,8 +83,38 @@ class MOABBBrain(sb.Brain):
                 self.hparams.lr_annealing.on_batch_end(self.optimizer)
         return loss
 
-    def on_fit_start(self,):
+    def on_fit_start(self):
         """Gets called at the beginning of ``fit()``"""
+        # Initialize wandb
+        run_name = f"exp_bs:{self.hparams.batch_size}_lr:{self.hparams.lr}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        wandb.init(project=self.hparams.project, name=run_name, mode=self.hparams.mode, entity=self.hparams.entity)
+
+        # Log configuration settings (hyperparameters) to wandb
+        relevant_hparams = {
+            'learning_rate': self.hparams.lr,
+            'batch_size': self.hparams.batch_size,
+            'max_duration_in_seconds': self.hparams.max_duration_in_seconds,
+            'model_name_or_path': self.hparams.model_name_or_path,
+            'random_init': self.hparams.random_init,
+            'freeze': self.hparams.freeze,
+            'sampling_rate': self.hparams.sampling_rate,
+            'do_stable_layer_norm': self.hparams.do_stable_layer_norm,
+            'feat_extract_norm': self.hparams.feat_extract_norm,
+            'num_feat_extract_layers': self.hparams.num_feat_extract_layers,
+            'conv_dim': self.hparams.conv_dim,
+            'conv_kernel': self.hparams.conv_kernel,
+            'conv_stride': self.hparams.conv_stride,
+            'num_hidden_layers': self.hparams.num_hidden_layers,
+            'hidden_size': self.hparams.ssl_dim,
+            'num_attention_heads': self.hparams.num_attention_heads,
+            'intermediate_size': self.hparams.intermediate_size,
+            'num_conv_pos_embeddings': self.hparams.num_conv_pos_embeddings,
+            'tdnn_dim': self.hparams.tdnn_dim,
+            'tdnn_kernel': self.hparams.tdnn_kernel,
+            'num_codevectors_per_group': self.hparams.num_codevectors_per_group
+        }
+        wandb.config.update(relevant_hparams)
+
         if 'skip_init' in hparams and not hparams['skip_init']:
             self.init_model(self.hparams.model)
         self.init_optimizers()
@@ -121,6 +153,8 @@ class MOABBBrain(sb.Brain):
                     metric_key
                 ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
+                # Log validation stats to wandb
+                wandb.log({'epoch': epoch, **self.last_eval_stats})
                 # Learning rate scheduler
                 if hasattr(self.hparams, "lr_annealing"):
                     old_lr, new_lr = self.hparams.lr_annealing(epoch)
@@ -182,6 +216,8 @@ class MOABBBrain(sb.Brain):
                     )
 
             elif stage == sb.Stage.TEST:
+                # Log final test metrics to wandb
+                wandb.log({'test_epoch': self.hparams.epoch_counter.current, **self.last_eval_stats})
                 self.hparams.train_logger.log_stats(
                     stats_meta={
                         "epoch loaded": self.hparams.epoch_counter.current

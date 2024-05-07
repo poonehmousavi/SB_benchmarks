@@ -124,6 +124,12 @@ augment: !new:speechbrain.augment.augmenter.Augmenter
 dims_to_normalize: 1 # 1 (time) or 2 (EEG channels)
 normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
     dims: !ref <dims_to_normalize>
+
+# WEIGHTS AND BIASES Configuration
+project: "brainlm_finetune"
+mode: "online"
+entity: "hussein-mohamu-jama"
+
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
 ssl_dim: 768
