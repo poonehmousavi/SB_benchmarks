@@ -146,10 +146,10 @@ attention_mlp: !new:models.EEGfinetune.AttentionMLP
     hidden_dim: !ref <att_hidden_dim>
 
 
-eeg_linearFinetuneModel: !new:models.EEGfinetune.eegFinetuneModel
+model: !new:models.EEGfinetune.eeg_linearFinetuneModel
     ssl_model : !ref <ssl_model>
     attention_mlp : !ref <attention_mlp>
-    out_neurons: !ref <n_classes>
+    out_n_neurons: !ref <n_classes>
     input_shape: !ref <input_shape>
     dense_max_norm: !ref <dense_max_norm>
 
