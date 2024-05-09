@@ -47,7 +47,7 @@ cm: !name:sklearn.metrics.confusion_matrix
 metrics:
     f1: !ref <f1>
     acc: !ref <acc>
-    cm: !ref <cm>
+    # cm: !ref <cm>
 # TRAINING HPARS
 n_train_examples: 100  # it will be replaced in the train script
 # checkpoints to average
@@ -129,12 +129,7 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
 project: "brainlm_finetune"
 mode: "online"
 entity: "lmbrain"
-
-# MODEL
-input_shape: [null, !ref <T>, !ref <C>, null]
-ssl_dim: 768
-att_hidden_dim : 128
-dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
+hparams_file_type: ""
 
 # SSL Configuration
 max_duration_in_seconds : 5
@@ -149,7 +144,7 @@ conv_dim: [512, 512]
 conv_kernel: [3, 3]
 conv_stride: [1, 1]
 num_hidden_layers: 4
-hidden_size: !ref <ssl_dim>
+hidden_size: 768
 num_attention_heads: 4
 intermediate_size: 768
 num_conv_pos_embeddings: 64
@@ -176,6 +171,13 @@ ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
     tdnn_dim: !ref <tdnn_dim>
     tdnn_kernel:  !ref <tdnn_kernel>
     num_codevectors_per_group:  !ref <num_codevectors_per_group>
+
+# FINETUNING MODEL Configuration
+input_shape: [null, !ref <T>, !ref <C>, null]
+ssl_dim: !ref <hidden_size>
+att_hidden_dim : 128
+dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
+emb_dim: 512 # Not used in linear finetuning. 
 
 attention_mlp: !new:models.EEGfinetune.AttentionMLP
     input_dim: !ref <ssl_dim>
