@@ -12,20 +12,23 @@ Davide Borra, 2022
 Mirco Ravanelli, 2023
 """
 
-import pickle
-import os
 import datetime
-import wandb
+import logging
+import os
+import pickle
+import sys
+import uuid
+
+import numpy as np
+import speechbrain as sb
 import torch
+import yaml
 from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
-import numpy as np
-import logging
-import sys
-from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
 from torchinfo import summary
-import speechbrain as sb
-import yaml
+from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
+
+import wandb
 
 
 class MOABBBrain(sb.Brain):
@@ -87,35 +90,40 @@ class MOABBBrain(sb.Brain):
         """Gets called at the beginning of ``fit()``"""
         # Initialize wandb
         run_name = f"exp_bs:{self.hparams.batch_size}_lr:{self.hparams.lr}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        wandb.init(project=self.hparams.project, name=run_name, mode=self.hparams.mode, entity=self.hparams.entity)
+        wandb.init(
+            project=self.hparams.project,
+            name=run_name,
+            mode=self.hparams.mode,
+            entity=self.hparams.entity,
+        )
 
         # Log configuration settings (hyperparameters) to wandb
         relevant_hparams = {
-            'learning_rate': self.hparams.lr,
-            'batch_size': self.hparams.batch_size,
-            'max_duration_in_seconds': self.hparams.max_duration_in_seconds,
-            'model_name_or_path': self.hparams.model_name_or_path,
-            'random_init': self.hparams.random_init,
-            'freeze': self.hparams.freeze,
-            'sampling_rate': self.hparams.sampling_rate,
-            'do_stable_layer_norm': self.hparams.do_stable_layer_norm,
-            'feat_extract_norm': self.hparams.feat_extract_norm,
-            'num_feat_extract_layers': self.hparams.num_feat_extract_layers,
-            'conv_dim': self.hparams.conv_dim,
-            'conv_kernel': self.hparams.conv_kernel,
-            'conv_stride': self.hparams.conv_stride,
-            'num_hidden_layers': self.hparams.num_hidden_layers,
-            'hidden_size': self.hparams.ssl_dim,
-            'num_attention_heads': self.hparams.num_attention_heads,
-            'intermediate_size': self.hparams.intermediate_size,
-            'num_conv_pos_embeddings': self.hparams.num_conv_pos_embeddings,
-            'tdnn_dim': self.hparams.tdnn_dim,
-            'tdnn_kernel': self.hparams.tdnn_kernel,
-            'num_codevectors_per_group': self.hparams.num_codevectors_per_group
+            "learning_rate": self.hparams.lr,
+            "batch_size": self.hparams.batch_size,
+            "max_duration_in_seconds": self.hparams.max_duration_in_seconds,
+            "model_name_or_path": self.hparams.model_name_or_path,
+            "random_init": self.hparams.random_init,
+            "freeze": self.hparams.freeze,
+            "sampling_rate": self.hparams.sampling_rate,
+            "do_stable_layer_norm": self.hparams.do_stable_layer_norm,
+            "feat_extract_norm": self.hparams.feat_extract_norm,
+            "num_feat_extract_layers": self.hparams.num_feat_extract_layers,
+            "conv_dim": self.hparams.conv_dim,
+            "conv_kernel": self.hparams.conv_kernel,
+            "conv_stride": self.hparams.conv_stride,
+            "num_hidden_layers": self.hparams.num_hidden_layers,
+            "hidden_size": self.hparams.ssl_dim,
+            "num_attention_heads": self.hparams.num_attention_heads,
+            "intermediate_size": self.hparams.intermediate_size,
+            "num_conv_pos_embeddings": self.hparams.num_conv_pos_embeddings,
+            "tdnn_dim": self.hparams.tdnn_dim,
+            "tdnn_kernel": self.hparams.tdnn_kernel,
+            "num_codevectors_per_group": self.hparams.num_codevectors_per_group,
         }
         wandb.config.update(relevant_hparams)
 
-        if 'skip_init' in hparams and not hparams['skip_init']:
+        if "skip_init" in hparams and not hparams["skip_init"]:
             self.init_model(self.hparams.model)
         self.init_optimizers()
         in_shape = (
@@ -154,7 +162,7 @@ class MOABBBrain(sb.Brain):
                 ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
                 # Log validation stats to wandb
-                wandb.log({'epoch': epoch, **self.last_eval_stats})
+                wandb.log({"epoch": epoch, **self.last_eval_stats})
                 # Learning rate scheduler
                 if hasattr(self.hparams, "lr_annealing"):
                     old_lr, new_lr = self.hparams.lr_annealing(epoch)
@@ -217,17 +225,21 @@ class MOABBBrain(sb.Brain):
 
             elif stage == sb.Stage.TEST:
                 # Log final test metrics to wandb
-                wandb.log({'test_epoch': self.hparams.epoch_counter.current, **self.last_eval_stats})
+                wandb.log({**self.last_eval_stats})
                 self.hparams.train_logger.log_stats(
                     stats_meta={
                         "epoch loaded": self.hparams.epoch_counter.current
                     },
-                    test_stats=self.last_eval_stats
-                    if not getattr(self, "log_test_as_valid", False)
-                    else None,
-                    valid_stats=self.last_eval_stats
-                    if getattr(self, "log_test_as_valid", False)
-                    else None,
+                    test_stats=(
+                        self.last_eval_stats
+                        if not getattr(self, "log_test_as_valid", False)
+                        else None
+                    ),
+                    valid_stats=(
+                        self.last_eval_stats
+                        if getattr(self, "log_test_as_valid", False)
+                        else None
+                    ),
                 )
                 # save the averaged checkpoint at the end of the evaluation stage
                 # delete the rest of the intermediate checkpoints
@@ -255,17 +267,21 @@ class MOABBBrain(sb.Brain):
             max_key=max_key, min_key=min_key
         )
         ckpt = sb.utils.checkpoints.average_checkpoints(
-            ckpts, recoverable_name="model",
+            ckpts,
+            recoverable_name="model",
         )
 
         self.hparams.model.load_state_dict(ckpt, strict=True)
         self.hparams.model.eval()
 
     def check_if_best(
-        self, last_eval_stats, best_eval_stats, keys,
+        self,
+        last_eval_stats,
+        best_eval_stats,
+        keys,
     ):
         """Checks if the current model is the best according at least to
-        one of the monitored metrics. """
+        one of the monitored metrics."""
         is_best = False
         for key in keys:
             if key == "loss":
@@ -427,7 +443,20 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     # loading hparams for the each training and evaluation processes
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
-    hparams["exp_dir"] = os.path.join(hparams["output_folder"], tail_path)
+
+    # Extract relevant hyperparameters for path creation
+    hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
+    num_attention_heads = overrides.get(
+        "num_attention_heads", str(uuid.uuid4())
+    )
+    # Generate a random identifier
+    unique_id = str(uuid.uuid4())
+    unique_output_folder = os.path.join(
+        hparams["output_folder"],
+        f"{hidden_size}_{num_attention_heads}_{unique_id}",
+        tail_path,
+    )
+    hparams["exp_dir"] = unique_output_folder
 
     # creating experiment directory
     sb.create_experiment_directory(
