@@ -55,6 +55,7 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
         self.freeze = freeze
 
         if random_init:
+            num_feat_extract_layers = len(conv_kernel)
             print(
                 f"***** Initializing the model randomly from {self.model_name_or_path} as a base *****"
             )
