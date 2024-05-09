@@ -129,7 +129,6 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
 project: "brainlm_finetune"
 mode: "online"
 entity: "lmbrain"
-hparams_file_type: ""
 
 # SSL Configuration
 max_duration_in_seconds : 5
