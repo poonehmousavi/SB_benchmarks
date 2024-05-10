@@ -113,7 +113,7 @@ class MOABBBrain(sb.Brain):
             "conv_kernel": self.hparams.conv_kernel,
             "conv_stride": self.hparams.conv_stride,
             "num_hidden_layers": self.hparams.num_hidden_layers,
-            "hidden_size": self.hparams.ssl_dim,
+            "hidden_size": self.hparams.hidden_size,
             "num_attention_heads": self.hparams.num_attention_heads,
             "intermediate_size": self.hparams.intermediate_size,
             "num_conv_pos_embeddings": self.hparams.num_conv_pos_embeddings,
