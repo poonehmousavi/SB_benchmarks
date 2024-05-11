@@ -138,7 +138,7 @@ dropout: 0.144 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
 
 # WEIGHTS AND BIASES Configuration
 project: "brainlm_finetune"
-mode: "disabled"
+mode: "online"
 entity: "lmbrain"
 
 # SSL Configuration
