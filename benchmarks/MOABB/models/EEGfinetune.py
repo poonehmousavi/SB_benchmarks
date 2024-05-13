@@ -44,8 +44,6 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
         num_attention_heads=12,
         intermediate_size=3072,
         num_conv_pos_embeddings=128,
-        tdnn_dim=[512, 512, 512, 512, 1500],
-        tdnn_kernel=[5, 3, 3, 1, 1],
         num_codevectors_per_group=320,
     ):
         super(Wav2Vec2ForFinetuning, self).__init__()
@@ -65,9 +63,6 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
                 == len(conv_stride)
                 == num_feat_extract_layers
             ), "dim mismatch, num_feat_extract_layers == len(conv_dim) == len(conv_kernel) == len(conv_stride)"
-            assert len(tdnn_dim) == len(
-                tdnn_kernel
-            ), "dim mismatch, len(tdnn_dim) == len(tdnn_kernel)"
             if freeze:
                 raise ValueError(
                     "freeze should be False for random initialized model"
@@ -86,8 +81,6 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
                 num_attention_heads=num_attention_heads,
                 intermediate_size=intermediate_size,
                 num_conv_pos_embeddings=num_conv_pos_embeddings,
-                tdnn_dim=tdnn_dim,
-                tdnn_kernel=tdnn_kernel,
                 num_codevectors_per_group=num_codevectors_per_group,
             )
             # initialize feature extractor

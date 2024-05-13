@@ -444,19 +444,22 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
-    # Extract relevant hyperparameters for path creation
-    hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
-    num_attention_heads = overrides.get(
-        "num_attention_heads", str(uuid.uuid4())
-    )
-    # Generate a random identifier
-    unique_id = str(uuid.uuid4())
-    unique_output_folder = os.path.join(
-        hparams["output_folder"],
-        f"{hidden_size}_{num_attention_heads}_{unique_id}",
-        tail_path,
-    )
-    hparams["exp_dir"] = unique_output_folder
+    if hparams['sweep_run']:
+        # Extract relevant hyperparameters for path creation
+        hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
+        num_attention_heads = overrides.get(
+            "num_attention_heads", str(uuid.uuid4())
+        )
+        # Generate a random identifier
+        unique_id = str(uuid.uuid4())
+        unique_output_folder = os.path.join(
+            hparams["output_folder"],
+            f"{hidden_size}_{num_attention_heads}_{unique_id}",
+            tail_path,
+        )
+        hparams["exp_dir"] = unique_output_folder
+    else:
+        hparams["exp_dir"] = os.path.join(hparams["output_folder"], tail_path)
 
     # creating experiment directory
     sb.create_experiment_directory(

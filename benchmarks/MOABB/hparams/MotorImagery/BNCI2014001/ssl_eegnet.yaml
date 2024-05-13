@@ -153,6 +153,7 @@ activation_type: 'elu'
 project: "brainlm_finetune"
 mode: "online"
 entity: "lmbrain"
+sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # SSL Configuration
 max_duration_in_seconds : 5
@@ -171,8 +172,6 @@ hidden_size: 768
 num_attention_heads: 4
 intermediate_size: 768
 num_conv_pos_embeddings: 64
-tdnn_dim: [256, 256]
-tdnn_kernel: [3, 2]
 num_codevectors_per_group: 160
 ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
     model_name_or_path: !ref <model_name_or_path>
@@ -191,8 +190,6 @@ ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
     num_attention_heads:  !ref <num_attention_heads>
     intermediate_size: !ref <intermediate_size>
     num_conv_pos_embeddings:  !ref <num_conv_pos_embeddings>
-    tdnn_dim: !ref <tdnn_dim>
-    tdnn_kernel:  !ref <tdnn_kernel>
     num_codevectors_per_group:  !ref <num_codevectors_per_group>
 
 
