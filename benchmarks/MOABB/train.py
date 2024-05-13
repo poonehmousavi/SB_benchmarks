@@ -117,8 +117,6 @@ class MOABBBrain(sb.Brain):
             "num_attention_heads": self.hparams.num_attention_heads,
             "intermediate_size": self.hparams.intermediate_size,
             "num_conv_pos_embeddings": self.hparams.num_conv_pos_embeddings,
-            "tdnn_dim": self.hparams.tdnn_dim,
-            "tdnn_kernel": self.hparams.tdnn_kernel,
             "num_codevectors_per_group": self.hparams.num_codevectors_per_group,
         }
         wandb.config.update(relevant_hparams)
