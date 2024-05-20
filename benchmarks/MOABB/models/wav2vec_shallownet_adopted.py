@@ -115,7 +115,7 @@ class Wav2Vec2ForFinetuning(torch.nn.Module):
                 self.model_name_or_path
             )
             # Initializing a model (with pretrained weights) from the model_name_or_path style configuration
-            self.model = Wav2Vec2Model.from_pretrained(self.model_name_or_path)
+            self.model = Wav2Vec2Model.from_pretrained(self.model_name_or_path, use_safetensors=True)
 
         if freeze:
             self.freeze_model(self.model)
