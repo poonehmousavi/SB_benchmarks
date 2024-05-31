@@ -470,14 +470,18 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     if not hparams["simclr"] and hparams["ft"]:
         # do not update the model
-        hparams["model"].conv_module.requires_grad_(False)
-        # load the encoder class_weights
-        hparams["model"].load_state_dict(
-            torch.load(hparams["simclr_pretrained"]), strict=False
-        )
         print(
             f"+++++++ Loading pretrained EEGNet from {hparams['simclr_pretrained']} +++++++++"
         )
+        hparams["model"].conv_module.requires_grad_(False)
+        # load the encoder class_weights
+        tmp = torch.load(hparams["simclr_pretrained"])
+        tmp_keys = list(tmp.keys())
+        for k in tmp_keys:
+            if "simclr" in k:
+                del tmp[k]
+        print("Loaded keys: ", list(tmp.keys()))
+        hparams["model"].load_state_dict(tmp, strict=True)
 
     if hparams["sweep_run"]:
         # Extract relevant hyperparameters for path creation
