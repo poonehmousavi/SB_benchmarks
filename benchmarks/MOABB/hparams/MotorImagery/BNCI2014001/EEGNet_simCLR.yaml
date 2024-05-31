@@ -5,15 +5,15 @@ __set_torchseed: !apply:torch.manual_seed [!ref <seed>]
 data_folder: !PLACEHOLDER  #'/path/to/dataset'. The dataset will be automatically downloaded in this folder
 cached_data_folder: !PLACEHOLDER #'path/to/pickled/dataset'
 output_folder: !PLACEHOLDER #'path/to/results'
-  
+
 # make it compliant with changes
 sweep_run: False
-project: EEGNet_simCLR_FT
+project: EEGNet_simCLR
 mode: "offline"
 entity: null
 random_init: False
 
-simclr: False
+simclr: True
 simclr_pretrained: null
 ft: False
 
@@ -48,7 +48,7 @@ C: 22
 # The variable avg_models can be used to average the parameters of the last (or best) N saved models before testing.
 # This can have a regularization effect. If avg_models: 1, the last (or best) model is used directly.
 test_with: 'last' # 'last' or 'best'
-test_key: "acc" # Possible opts: "loss", "f1", "auc", "acc"
+test_key: "loss" # Possible opts: "loss", "f1", "auc", "acc"
 
 # METRICS
 f1: !name:sklearn.metrics.f1_score
@@ -63,22 +63,22 @@ metrics:
 n_train_examples: 100  # it will be replaced in the train script
 # checkpoints to average
 avg_models: 10 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
-number_of_epochs: 862 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
-lr: 0.0001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
+number_of_epochs: 1500 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
+lr: 0.001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
 max_lr: !ref <lr> # Upper bound of the cycle (max value of the lr)
 base_lr: 0.00000001 # Lower bound in the cycle (min value of the lr)
 step_size_multiplier: 5 #from 2 to 8
 step_size: !apply:round
     - !ref <step_size_multiplier> * <n_train_examples> / <batch_size>
-lr_annealing: !new:speechbrain.nnet.schedulers.CyclicLRScheduler
-    base_lr: !ref <base_lr>
-    max_lr: !ref <max_lr>
-    step_size: !ref <step_size>
+      # lr_annealing: !new:speechbrain.nnet.schedulers.CyclicLRScheduler
+      # base_lr: !ref <base_lr>
+      # max_lr: !ref <max_lr>
+      # step_size: !ref <step_size>
 label_smoothing: 0.0
 loss: !name:speechbrain.nnet.losses.nll_loss
     label_smoothing: !ref <label_smoothing>
-optimizer: !name:torch.optim.Adam
+optimizer: !name:torch.optim.SGD
     lr: !ref <lr>
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter  # epoch counter
     limit: !ref <number_of_epochs>
@@ -88,17 +88,17 @@ valid_ratio: 0.2
 
 # DATA AUGMENTATION
 # cutcat (disabled when min_num_segments=max_num_segments=1)
-max_num_segments: 3 # @orion_step2: --max_num_segments~"uniform(2, 6, discrete=True)"
+max_num_segments: 4 # @orion_step2: --max_num_segments~"uniform(2, 6, discrete=True)"
 cutcat: !new:speechbrain.augment.time_domain.CutCat
-    min_num_segments: 2
+    min_num_segments: 3
     max_num_segments: !ref <max_num_segments>
 # random amplitude gain between 0.5-1.5 uV (disabled when amp_delta=0.)
-amp_delta: 0.01742 # @orion_step2: --amp_delta~"uniform(0.0, 0.5)"
+amp_delta: 0.5 # @orion_step2: --amp_delta~"uniform(0.0, 0.5)"
 rand_amp: !new:speechbrain.augment.time_domain.RandAmp
     amp_low: !ref 1 - <amp_delta>
     amp_high: !ref 1 + <amp_delta>
 # random shifts between -300 ms to 300 ms (disabled when shift_delta=0.)
-shift_delta_: 1 # orion_step2: --shift_delta_~"uniform(0, 25, discrete=True)"
+shift_delta_: 5 # orion_step2: --shift_delta_~"uniform(0, 25, discrete=True)"
 shift_delta: !ref 1e-2 * <shift_delta_> # 0.250 # 0.-0.25 with steps of 0.01
 min_shift: !apply:math.floor
     - !ref 0 - <sample_rate> * <shift_delta>
@@ -109,7 +109,7 @@ time_shift: !new:speechbrain.augment.freq_domain.RandomShift
     max_shift: !ref <max_shift>
     dim: 1
 # injection of gaussian white noise
-snr_white_low: 15.0 # @orion_step2: --snr_white_low~"uniform(0.0, 15, precision=2)"
+snr_white_low: 0.0 # @orion_step2: --snr_white_low~"uniform(0.0, 15, precision=2)"
 snr_white_delta: 19.1 # @orion_step2: --snr_white_delta~"uniform(5.0, 20.0, precision=3)"
 snr_white_high: !ref <snr_white_low> + <snr_white_delta>
 add_noise_white: !new:speechbrain.augment.time_domain.AddNoise
@@ -118,8 +118,8 @@ add_noise_white: !new:speechbrain.augment.time_domain.AddNoise
 
 repeat_augment: 1 # @orion_step1: --repeat_augment 0
 augment: !new:speechbrain.augment.augmenter.Augmenter
-    parallel_augment: True
-    concat_original: True
+    parallel_augment: False
+    concat_original: False
     parallel_augment_fixed_bs: True
     repeat_augment: !ref <repeat_augment>
     shuffle_augmentations: True

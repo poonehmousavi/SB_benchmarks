@@ -449,6 +449,26 @@ def prepare_dataset_iterators(hparams):
     return tail_path, datasets
 
 
+def find_best_model_ckpt(base_path):
+    best_loss = float("inf")
+    best_model_ckpt_path = None
+
+    for root, dirs, files in os.walk(base_path):
+        if "CKPT.yaml" in files:
+            ckpt_path = os.path.join(root, "CKPT.yaml")
+            model_ckpt_path = os.path.join(root, "model.ckpt")
+
+            with open(ckpt_path, "r") as f:
+                ckpt_data = yaml.safe_load(f)
+
+            loss = ckpt_data.get("loss", float("inf"))
+            if loss < best_loss:
+                best_loss = loss
+                best_model_ckpt_path = model_ckpt_path
+
+    return best_model_ckpt_path
+
+
 def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     """Loads the hparams and datasets, injecting appropriate overrides
     for the shape of the dataset.
@@ -470,12 +490,13 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     if not hparams["simclr"] and hparams["ft"]:
         # do not update the model
-        print(
-            f"+++++++ Loading pretrained EEGNet from {hparams['simclr_pretrained']} +++++++++"
-        )
-        hparams["model"].conv_module.requires_grad_(False)
+        print(f"+++++++ Loading pretrained EEGNet +++++++++")
+        # hparams["model"].conv_module.requires_grad_(False)
         # load the encoder class_weights
-        tmp = torch.load(hparams["simclr_pretrained"])
+        best_path = find_best_model_ckpt(hparams["simclr_pretrained"])
+        print(f"++++ Best checkpoint found in {best_path} ++++++")
+
+        tmp = torch.load(best_path)
         tmp_keys = list(tmp.keys())
         for k in tmp_keys:
             if "simclr" in k:
