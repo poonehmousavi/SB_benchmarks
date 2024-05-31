@@ -468,6 +468,17 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
+    if not hparams["simclr"] and hparams["ft"]:
+        # do not update the model
+        hparams["model"].conv_module.requires_grad_(False)
+        # load the encoder class_weights
+        hparams["model"].load_state_dict(
+            torch.load(hparams["simclr_pretrained"]), strict=False
+        )
+        print(
+            f"+++++++ Loading pretrained EEGNet from {hparams['simclr_pretrained']} +++++++++"
+        )
+
     if hparams["sweep_run"]:
         # Extract relevant hyperparameters for path creation
         hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))

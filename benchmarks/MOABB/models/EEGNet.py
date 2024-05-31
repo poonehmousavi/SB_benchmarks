@@ -219,7 +219,7 @@ class EEGNet(torch.nn.Module):
                 "proj",
                 sb.nnet.linear.Linear(
                     input_size=dense_input_size,
-                    n_neurons=256,
+                    n_neurons=32,
                     # max_norm=dense_max_norm,
                 ),
             )
