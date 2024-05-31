@@ -22,13 +22,15 @@ import uuid
 import numpy as np
 import speechbrain as sb
 import torch
+import torch.nn.functional as F
+import wandb
 import yaml
 from hyperpyyaml import load_hyperpyyaml
+from pytorch_metric_learning import losses
 from torch.nn import init
 from torchinfo import summary
-from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
 
-import wandb
+from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
 
 
 class MOABBBrain(sb.Brain):
@@ -46,10 +48,24 @@ class MOABBBrain(sb.Brain):
 
     def compute_forward(self, batch, stage):
         "Given an input batch it computes the model output."
+        # B x T x C x 1
         inputs = batch[0].to(self.device)
 
+        if self.hparams.simclr:
+            # 2B x T x C x 1 -- needed to create two views of the same signal
+            inputs = (
+                inputs[:, None]
+                .expand(-1, 2, -1, -1, -1)
+                .clone()
+                .flatten(end_dim=1)
+            )
+
         # Perform data augmentation
-        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augment"):
+        if (
+            stage == sb.Stage.TRAIN
+            and hasattr(self.hparams, "augment")
+            or self.hparams.simclr
+        ):
             inputs, _ = self.hparams.augment(
                 inputs.squeeze(3),
                 lengths=torch.ones(inputs.shape[0], device=self.device),
@@ -59,31 +75,40 @@ class MOABBBrain(sb.Brain):
         # Normalization
         if hasattr(self.hparams, "normalize"):
             inputs = self.hparams.normalize(inputs)
+
         return self.modules.model(inputs)
 
     def compute_objectives(self, predictions, batch, stage):
         "Given the network predictions and targets computes the loss."
         targets = batch[1].to(self.device)
+        B = targets.shape[0]
 
-        # Target augmentation
-        N_augments = int(predictions.shape[0] / targets.shape[0])
-        targets = torch.cat(N_augments * [targets], dim=0)
+        if not self.hparams.simclr:
+            # Target augmentation
+            N_augments = int(predictions.shape[0] / targets.shape[0])
+            targets = torch.cat(N_augments * [targets], dim=0)
 
-        loss = self.hparams.loss(
-            predictions,
-            targets,
-            weight=torch.FloatTensor(self.hparams.class_weights).to(
-                self.device
-            ),
-        )
-        if stage != sb.Stage.TRAIN:
-            # From log to linear predictions
-            tmp_preds = torch.exp(predictions)
-            self.preds.extend(tmp_preds.detach().cpu().numpy())
-            self.targets.extend(batch[1].detach().cpu().numpy())
+            loss = self.hparams.loss(
+                predictions,
+                targets,
+                weight=torch.FloatTensor(self.hparams.class_weights).to(
+                    self.device
+                ),
+            )
+
+            if stage != sb.Stage.TRAIN:
+                # From log to linear predictions
+                tmp_preds = torch.exp(predictions)
+                self.preds.extend(tmp_preds.detach().cpu().numpy())
+                self.targets.extend(batch[1].detach().cpu().numpy())
         else:
+            indices = torch.arange(B)[:, None].expand(-1, 2).flatten()
+            loss = losses.NTXentLoss()(predictions, indices)
+
+        if stage == sb.Stage.TRAIN:
             if hasattr(self.hparams, "lr_annealing"):
                 self.hparams.lr_annealing.on_batch_end(self.optimizer)
+
         return loss
 
     def on_fit_start(self):
@@ -148,16 +173,17 @@ class MOABBBrain(sb.Brain):
         if stage == sb.Stage.TRAIN:
             self.train_loss = stage_loss
         else:
-            preds = np.array(self.preds)
-            y_pred = np.argmax(preds, axis=-1)
-            y_true = self.targets
             self.last_eval_stats = {
                 "loss": stage_loss,
             }
-            for metric_key in self.hparams.metrics.keys():
-                self.last_eval_stats[metric_key] = self.hparams.metrics[
-                    metric_key
-                ](y_true=y_true, y_pred=y_pred)
+            if not self.hparams.simclr:
+                preds = np.array(self.preds)
+                y_pred = np.argmax(preds, axis=-1)
+                y_true = self.targets
+                for metric_key in self.hparams.metrics.keys():
+                    self.last_eval_stats[metric_key] = self.hparams.metrics[
+                        metric_key
+                    ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
                 # Log validation stats to wandb
                 wandb.log({"epoch": epoch, **self.last_eval_stats})
@@ -442,7 +468,7 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
-    if hparams['sweep_run']:
+    if hparams["sweep_run"]:
         # Extract relevant hyperparameters for path creation
         hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
         num_attention_heads = overrides.get(

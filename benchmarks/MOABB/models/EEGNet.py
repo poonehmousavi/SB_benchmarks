@@ -5,8 +5,9 @@ It was proposed for P300, error-related negativity, motor execution, motor image
 Authors
  * Davide Borra, 2021
 """
-import torch
+
 import speechbrain as sb
+import torch
 
 
 class EEGNet(torch.nn.Module):
@@ -69,8 +70,10 @@ class EEGNet(torch.nn.Module):
         dense_max_norm=0.25,
         dense_n_neurons=4,
         activation_type="elu",
+        simclr=False,
     ):
         super().__init__()
+        self.simclr = simclr
         if input_shape is None:
             raise ValueError("Must specify input_shape")
         if activation_type == "gelu":
@@ -107,7 +110,9 @@ class EEGNet(torch.nn.Module):
         self.conv_module.add_module(
             "bnorm_0",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
+                input_size=cnn_temporal_kernels,
+                momentum=0.01,
+                affine=True,
             ),
         )
         # Spatial depthwise convolution
@@ -130,7 +135,9 @@ class EEGNet(torch.nn.Module):
         self.conv_module.add_module(
             "bnorm_1",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_spatial_kernels, momentum=0.01, affine=True,
+                input_size=cnn_spatial_kernels,
+                momentum=0.01,
+                affine=True,
             ),
         )
         self.conv_module.add_module("act_1", activation)
@@ -202,10 +209,27 @@ class EEGNet(torch.nn.Module):
             torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
         )
         dense_input_size = self._num_flat_features(out)
+        if self.simclr:
+            self.simclr_proj = torch.nn.Sequential()
+            self.simclr_proj.add_module(
+                "flatten",
+                torch.nn.Flatten(),
+            )
+            self.simclr_proj.add_module(
+                "proj",
+                sb.nnet.linear.Linear(
+                    input_size=dense_input_size,
+                    n_neurons=256,
+                    # max_norm=dense_max_norm,
+                ),
+            )
+            # self.dense_module.add_module("act_out", torch.nn.LogSoftmax(dim=1))
+
         # DENSE MODULE
         self.dense_module = torch.nn.Sequential()
         self.dense_module.add_module(
-            "flatten", torch.nn.Flatten(),
+            "flatten",
+            torch.nn.Flatten(),
         )
         self.dense_module.add_module(
             "fc_out",
@@ -241,5 +265,9 @@ class EEGNet(torch.nn.Module):
             Input to convolve. 4d tensors are expected.
         """
         x = self.conv_module(x)
-        x = self.dense_module(x)
+        if not self.simclr:
+            x = self.dense_module(x)
+        else:
+            x = self.simclr_proj(x)
+
         return x
