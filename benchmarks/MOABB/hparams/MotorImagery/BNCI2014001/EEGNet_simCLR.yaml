@@ -62,7 +62,7 @@ metrics:
 # TRAINING HPARS
 n_train_examples: 100  # it will be replaced in the train script
 # checkpoints to average
-avg_models: 10 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
+avg_models: 5 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
 number_of_epochs: 1500 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
 lr: 0.001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
@@ -97,7 +97,7 @@ cutcat: !new:speechbrain.augment.time_domain.CutCat
 # drop chunk
 drop_chunk: !new:speechbrain.augment.time_domain.DropChunk
     drop_length_low: 0
-    drop_length_high: 200
+    drop_length_high: 100
 # random amplitude gain between 0.5-1.5 uV (disabled when amp_delta=0.)
 amp_delta: 1.5 # @orion_step2: --amp_delta~"uniform(0.0, 0.5)"
 rand_amp: !new:speechbrain.augment.time_domain.RandAmp
@@ -116,7 +116,7 @@ time_shift: !new:speechbrain.augment.freq_domain.RandomShift
     dim: 1
 # injection of gaussian white noise
 snr_white_low: 0.0 # @orion_step2: --snr_white_low~"uniform(0.0, 15, precision=2)"
-snr_white_delta: 10.0 # @orion_step2: --snr_white_delta~"uniform(5.0, 20.0, precision=3)"
+snr_white_delta: 20.0 # @orion_step2: --snr_white_delta~"uniform(5.0, 20.0, precision=3)"
 snr_white_high: !ref <snr_white_low> + <snr_white_delta>
 add_noise_white: !new:speechbrain.augment.time_domain.AddNoise
     snr_low: !ref <snr_white_low>
@@ -139,6 +139,8 @@ channel_drop: !new:speechbrain.augment.time_domain.ChannelDrop
 # reduce bit res
 drop_bitres: !new:speechbrain.augment.time_domain.DropBitResolution
 
+min_aug: 8
+max_aug: 8
 repeat_augment: 1 # @orion_step1: --repeat_augment 0
 augment: !new:speechbrain.augment.augmenter.Augmenter
     parallel_augment: False
@@ -146,8 +148,8 @@ augment: !new:speechbrain.augment.augmenter.Augmenter
     parallel_augment_fixed_bs: True
     repeat_augment: !ref <repeat_augment>
     shuffle_augmentations: True
-    min_augmentations: 5
-    max_augmentations: 8
+    min_augmentations: !ref <min_aug>
+    max_augmentations: !ref <max_aug>
     augmentations: [
         !ref <cutcat>,
         !ref <rand_amp>,
@@ -156,7 +158,7 @@ augment: !new:speechbrain.augment.augmenter.Augmenter
         !ref <drop_chunk>,
         !ref <channel_swap>,
         !ref <drop_freq>,
-        !ref <drop_bitres>
+        !ref <drop_bitres>,
     ]
 
 # DATA NORMALIZATION

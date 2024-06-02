@@ -203,8 +203,9 @@ mkdir -p $cached_data_folder
 
 # Function to run the training experiment
 run_experiment() {
-  local target_session_idx="$1"
-  local output_folder_exp="$2"
+  # local target_session_idx="$1"
+  # local output_folder_exp="$2"
+  target_session_idx=1
 
   for target_subject_idx in $(seq 0 1 $(( nsbj - 1 ))); do
     echo "Subject $target_subject_idx"
@@ -218,14 +219,20 @@ run_experiment() {
 
     # run simCLR
     simclr_out=results/simCLR_sub${target_subject_idx}_sess${target_session_idx}
-    python SB_benchmarks/benchmarks/MOABB/train.py $simCLR_hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$simclr_out \
-      --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
-      --data_iterator_name="$train_mode" $additional_flags --batch_size 64 --number_of_epochs 5000 --mode online
+    # python SB_benchmarks/benchmarks/MOABB/train.py $simCLR_hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$simclr_out \
+      # --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
+      # --data_iterator_name="$train_mode" $additional_flags --batch_size 32 --number_of_epochs 2000 --mode online
 
     # run FT
-    python SB_benchmarks/benchmarks/MOABB/train.py $hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$output_folder_exp\
-      --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
-      --data_iterator_name="$train_mode" $additional_flags --ft True --simclr_pretrained $simclr_out --mode online
+    # python SB_benchmarks/benchmarks/MOABB/train.py $hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$output_folder_exp\
+      # --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
+      # --data_iterator_name="$train_mode" $additional_flags --ft True --simclr_pretrained $simclr_out --mode online --lr 0.0001 --base_lr 0.00001 --avg_models 1
+
+    python SB_benchmarks/benchmarks/MOABB/train.py SB_benchmarks/benchmarks/MOABB/hparams/MotorImagery/BNCI2014001/EEGNet.yaml \
+      --data_folder=SB_benchmarks/benchmarks/MOABB/data --cached_data_folder=SB_benchmarks/benchmarks/MOABB/data \
+      --output_folder=$output_folder_exp --target_subject_idx=0 --target_session_idx=1 --data_iterator_name=leave-one-session-out --device=cuda \
+      --ft=True --simclr_pretrained=$simclr_out \
+      --mode=online --lr=0.0002147 --base_lr=0.000004087 --label_smoothing=0.001815 --number_of_epochs=285 --step_size_multiplier=3.446 
 
   done
 }

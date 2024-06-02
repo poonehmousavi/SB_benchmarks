@@ -489,7 +489,9 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     if not hparams["simclr"] and hparams["ft"]:
         # do not update the model
-        print(f"+++++++ Loading pretrained EEGNet +++++++++")
+        print(
+            f"+++++++ Loading pretrained EEGNet. Checking for model in {hparams['ft']}  +++++++++"
+        )
         # hparams["model"].conv_module.requires_grad_(False)
         # load the encoder class_weights
         best_path = find_best_model_ckpt(hparams["simclr_pretrained"])
