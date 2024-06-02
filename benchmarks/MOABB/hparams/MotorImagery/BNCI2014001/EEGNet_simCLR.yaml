@@ -67,13 +67,15 @@ number_of_epochs: 1500 # @orion_step1: --number_of_epochs~"uniform(250, 1000, di
 lr: 0.001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
 max_lr: !ref <lr> # Upper bound of the cycle (max value of the lr)
-base_lr: 0.00000001 # Lower bound in the cycle (min value of the lr)
+base_lr: 0.00001 # Lower bound in the cycle (min value of the lr)
 step_size_multiplier: 5 #from 2 to 8
 step_size: !apply:round
     - !ref <step_size_multiplier> * <n_train_examples> / <batch_size>
 
-      # lr_annealing: !new:speechbrain.nnet.schedulers.ReduceLROnPlateau
-      # dont_halve_until_epoch: 50
+lr_annealing: !new:speechbrain.nnet.schedulers.CyclicLRScheduler
+    base_lr: !ref <base_lr>
+    max_lr: !ref <max_lr>
+    step_size: !ref <step_size>
 
 label_smoothing: 0.0
 loss: !name:speechbrain.nnet.losses.nll_loss
@@ -144,7 +146,7 @@ augment: !new:speechbrain.augment.augmenter.Augmenter
     parallel_augment_fixed_bs: True
     repeat_augment: !ref <repeat_augment>
     shuffle_augmentations: True
-    min_augmentations: 8
+    min_augmentations: 5
     max_augmentations: 8
     augmentations: [
         !ref <cutcat>,
