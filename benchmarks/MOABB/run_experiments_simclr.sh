@@ -220,12 +220,12 @@ run_experiment() {
     simclr_out=results/simCLR_sub${target_subject_idx}_sess${target_session_idx}
     python SB_benchmarks/benchmarks/MOABB/train.py $simCLR_hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$simclr_out \
       --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
-      --data_iterator_name="$train_mode" $additional_flags --batch_size 32
+      --data_iterator_name="$train_mode" $additional_flags --batch_size 64 --number_of_epochs 5000 --mode online
 
     # run FT
     python SB_benchmarks/benchmarks/MOABB/train.py $hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$output_folder_exp\
       --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
-      --data_iterator_name="$train_mode" $additional_flags --ft True --simclr_pretrained $simclr_out
+      --data_iterator_name="$train_mode" $additional_flags --ft True --simclr_pretrained $simclr_out --mode online
 
   done
 }
