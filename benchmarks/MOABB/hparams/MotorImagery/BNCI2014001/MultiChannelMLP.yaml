@@ -127,14 +127,10 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
     dims: !ref <dims_to_normalize>
 
 # WEIGHTS AND BIASES Configuration
-project: "multi_channel_test"
+project: "pretrain_finetune_brainlm"
 mode: "online"
-entity: "victor-cruz-hrdz"
+entity: "lmbrain"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
-
-#SSL
-random_init: False
-freeze: False
 
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
