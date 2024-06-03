@@ -53,7 +53,7 @@ n_train_examples: 100  # it will be replaced in the train script
 # checkpoints to average
 avg_models: 1 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
 number_of_epochs: 881 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
-lr: 0.00001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
+lr: 0.001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
 max_lr: !ref <lr> # Upper bound of the cycle (max value of the lr)
 base_lr: 0.00000001 # Lower bound in the cycle (min value of the lr)
@@ -71,7 +71,7 @@ optimizer: !name:torch.optim.Adam
     lr: !ref <lr>
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter  # epoch counter
     limit: !ref <number_of_epochs>
-batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
+batch_size_exponent: 1 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
 batch_size: !ref 2 ** <batch_size_exponent>
 valid_ratio: 0.2
 
@@ -148,24 +148,19 @@ max_duration_in_seconds : !ref <tmax>
 model_name_or_path : "ckpts"
 random_init: False
 freeze: True
-sampling_rate: 128
-ssl_model: !new:models.wav2vec_shallownet_adopted.Wav2Vec2ForFinetuning
+conv_dim: [512, 512, 512, 512]
+conv_kernel: [8, 6, 4, 2]
+conv_stride: [2, 1, 1, 1]
+ssl_model: !new:models.finetune_wav2vec2.Wav2Vec2ForFinetuning
     model_name_or_path: !ref <model_name_or_path>
     max_duration_in_seconds: !ref <max_duration_in_seconds>
     random_init: !ref <random_init>
     freeze:  !ref <freeze>
-    C:  !ref <C>
-    sampling_rate: !ref <sampling_rate>
-    input_type: !ref <input_type>
+    conv_dim: !ref <conv_dim>
+    conv_kernel:  !ref <conv_kernel>
+    conv_stride: !ref <conv_stride>
 
-model: !new:models.wav2vec_shallownet_adopted.Wav2ShallowConvNet
-    input_shape: !ref <input_shape>
+model: !new:models.finetune.FinetuningModel
     ssl_model: !ref <ssl_model>
-    input_type: !ref <input_type>
-    cnn_temporal_kernels: !ref <cnn_temporal_kernels>
-    cnn_spatial_kernels: !ref <cnn_spatial_kernels>
-    cnn_temporal_kernelsize: [!ref <cnn_temporal_kernelsize>, 1]
-    cnn_poolsize: [!ref <cnn_poolsize>, 1]
-    cnn_poolstride: [!ref <cnn_poolstride>, 1]
-    dropout: !ref <dropout>
     dense_n_neurons: !ref <n_classes>
+    input_type: !ref <input_type>
