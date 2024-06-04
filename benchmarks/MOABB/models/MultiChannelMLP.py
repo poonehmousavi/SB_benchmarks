@@ -33,20 +33,22 @@ class MultiChannelMLP(torch.nn.Module):
     def __init__(
         self,
         input_shape=None,  # (1, T, C, 1)
-        hidden_layer= 512, 
+        hidden_layer=512,
         dense_n_neurons=4,
         dense_max_norm=0.25,
+        activation_type="relu",
     ):
         super().__init__()
         if input_shape is None:
             raise ValueError("Must specify input_shape")
-
+        if activation_type == "gelu":
+            activation = torch.nn.GELU()
+        elif activation_type == "elu":
+            activation = torch.nn.ELU()
+        elif activation_type == "relu":
+            activation = torch.nn.ReLU()
         self.default_sf = 128  # sampling rate of the original publication (Hz)
         T = input_shape[1]
-        C = input_shape[2]
-
-
-        
         # DENSE MODULE
         self.dense_module_1 = torch.nn.Sequential()
         self.dense_module_2 = torch.nn.Sequential()
@@ -58,6 +60,7 @@ class MultiChannelMLP(torch.nn.Module):
                 max_norm=dense_max_norm,
             ),
         )
+        self.dense_module_1.add_module('act_1', activation)
         self.dense_module_2.add_module(
             "fc_out",
             sb.nnet.linear.Linear(
@@ -68,7 +71,6 @@ class MultiChannelMLP(torch.nn.Module):
         )
         self.dense_module_2.add_module("act_out", torch.nn.LogSoftmax(dim=1))
 
-
     def forward(self, x):
         """Returns the output of the model.
 
@@ -78,18 +80,8 @@ class MultiChannelMLP(torch.nn.Module):
             Input to convolve. 4d tensors are expected. 
         """
         x = x.squeeze(-1)
-        x = x.permute(0,2,1)
+        x = x.permute(0, 2, 1)
         x = self.dense_module_1(x)
-        x = x.mean(1) #global average pooling
+        x = x.mean(1)  # global average pooling
         x = self.dense_module_2(x)
         return x
-
-
-
-"""
-B T N 1
-[1, 200, 32, 1]
-B T N 
-B N T
-
-"""
