@@ -96,30 +96,6 @@ class MOABBBrain(sb.Brain):
             mode=self.hparams.mode,
             entity=self.hparams.entity,
         )
-        if self.hparams.random_init:
-            # Log configuration settings (hyperparameters) to wandb
-            relevant_hparams = {
-                "learning_rate": self.hparams.lr,
-                "batch_size": self.hparams.batch_size,
-                "max_duration_in_seconds": self.hparams.max_duration_in_seconds,
-                "model_name_or_path": self.hparams.model_name_or_path,
-                "random_init": self.hparams.random_init,
-                "freeze": self.hparams.freeze,
-                "sampling_rate": self.hparams.sampling_rate,
-                "do_stable_layer_norm": self.hparams.do_stable_layer_norm,
-                "feat_extract_norm": self.hparams.feat_extract_norm,
-                "num_feat_extract_layers": self.hparams.num_feat_extract_layers,
-                "conv_dim": self.hparams.conv_dim,
-                "conv_kernel": self.hparams.conv_kernel,
-                "conv_stride": self.hparams.conv_stride,
-                "num_hidden_layers": self.hparams.num_hidden_layers,
-                "hidden_size": self.hparams.hidden_size,
-                "num_attention_heads": self.hparams.num_attention_heads,
-                "intermediate_size": self.hparams.intermediate_size,
-                "num_conv_pos_embeddings": self.hparams.num_conv_pos_embeddings,
-                "num_codevectors_per_group": self.hparams.num_codevectors_per_group,
-            }
-            wandb.config.update(relevant_hparams)
 
         if "skip_init" in hparams and not hparams["skip_init"]:
             self.init_model(self.hparams.model)

@@ -151,46 +151,26 @@ activation_type: 'elu'
 
 # WEIGHTS AND BIASES Configuration
 project: "brainlm_finetune"
-mode: "online"
+mode: "disabled"
 entity: "lmbrain"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # SSL Configuration
-max_duration_in_seconds : 5
-model_name_or_path : "facebook/wav2vec2-base-960h"
-random_init: True
-freeze: False
-sampling_rate: 128
-do_stable_layer_norm: True
-feat_extract_norm: "layer"
-num_feat_extract_layers: 2
-conv_dim: [512, 512]
-conv_kernel: [3, 3]
-conv_stride: [1, 1]
-num_hidden_layers: 4
-hidden_size: 768
-num_attention_heads: 4
-intermediate_size: 768
-num_conv_pos_embeddings: 64
-num_codevectors_per_group: 160
-ssl_model: !new:models.EEGfinetune.Wav2Vec2ForFinetuning
+max_duration_in_seconds : !ref <tmax>
+model_name_or_path : "ckpts"
+random_init: False
+freeze: True
+conv_dim: [512, 512, 512, 512]
+conv_kernel: [8, 6, 4, 2]
+conv_stride: [2, 1, 1, 1]
+ssl_model: !new:models.finetune_wav2vec2.Wav2Vec2ForFinetuning
     model_name_or_path: !ref <model_name_or_path>
     max_duration_in_seconds: !ref <max_duration_in_seconds>
     random_init: !ref <random_init>
     freeze:  !ref <freeze>
-    sampling_rate: !ref <sampling_rate>
-    do_stable_layer_norm: !ref <do_stable_layer_norm>
-    feat_extract_norm:  !ref <feat_extract_norm>
-    num_feat_extract_layers: !ref <num_feat_extract_layers>
     conv_dim: !ref <conv_dim>
     conv_kernel:  !ref <conv_kernel>
     conv_stride: !ref <conv_stride>
-    num_hidden_layers:  !ref <num_hidden_layers>
-    hidden_size: !ref <hidden_size>
-    num_attention_heads:  !ref <num_attention_heads>
-    intermediate_size: !ref <intermediate_size>
-    num_conv_pos_embeddings:  !ref <num_conv_pos_embeddings>
-    num_codevectors_per_group:  !ref <num_codevectors_per_group>
 
 
 model: !new:models.wav2vec_EEGnet.Wav2EEGNet
