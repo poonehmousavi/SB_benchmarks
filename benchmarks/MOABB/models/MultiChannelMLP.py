@@ -1,9 +1,5 @@
-"""MultiChannelMLP from https://doi.org/10.1088/1741-2552/aace8c.
-Shallow and lightweight convolutional neural network proposed for a general decoding of single-trial EEG signals.
-It was proposed for P300, error-related negativity, motor execution, motor imagery decoding.
+"""MultiChannelMLP
 
-Authors
- * Davide Borra, 2021
 """
 import torch
 import speechbrain as sb
@@ -23,11 +19,11 @@ class MultiChannelMLP(torch.nn.Module):
 
     Example
     -------
-    #>>> inp_tensor = torch.rand([1, 200, 32, 1])
-    #>>> model = MultiChannelMLP(input_shape=inp_tensor.shape)
-    #>>> output = model(inp_tensor)
-    #>>> output.shape
-    #torch.Size([1,4])
+    >>> inp_tensor = torch.rand([1, 200, 32, 1])
+    >>> model = MultiChannelMLP(input_shape=inp_tensor.shape)
+    >>> output = model(inp_tensor)
+    >>> output.shape
+    torch.Size([1,4])
     """
 
     def __init__(
