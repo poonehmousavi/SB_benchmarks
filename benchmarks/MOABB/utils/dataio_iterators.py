@@ -14,6 +14,7 @@ Davide Borra, 2021
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+import torch_geometric
 import os
 from utils.prepare import prepare_data
 
@@ -39,6 +40,44 @@ def get_idx_train_valid_classbalanced(idx_train, valid_ratio, y):
     idx_valid = np.array(idx_valid)
     idx_train = np.setdiff1d(idx_train, idx_valid)
     return idx_train, idx_valid
+
+
+def adjacency_to_edge_list(adjacency_mtx):
+    """Convert adjacency matrix to edge list format"""
+    edge_list = np.vstack(np.nonzero(adjacency_mtx)).T
+    return torch.tensor(edge_list, dtype=torch.long).t().contiguous()
+
+
+def create_dataset(x, y, edge_index):
+    """Create a list of Data objects for the dataset"""
+    dataset = [torch_geometric.data.Data(x=torch.tensor(x[i], dtype=torch.float),
+                                         edge_index=edge_index,
+                                         y=torch.tensor(y[i], dtype=torch.long)) for i in range(len(x))]
+    return dataset
+
+
+def get_graph_dataloader(batch_size, xya_train, xya_valid, xya_test):
+    """This function returns dataloaders for training, validation and test"""
+    x_train, y_train, x_train_adj = xya_train[0], xya_train[1], xya_train[2]
+    x_valid, y_valid, x_valid_adj = xya_valid[0], xya_valid[1], xya_valid[2]
+    x_test, y_test, x_test_adj = xya_test[0], xya_test[1], xya_test[2]
+
+    # Convert the fixed adjacency matrix to edge list
+    edge_index_train = adjacency_to_edge_list(x_train_adj)
+    edge_index_valid = adjacency_to_edge_list(x_valid_adj)
+    edge_index_test = adjacency_to_edge_list(x_test_adj)
+
+    # Create datasets
+    train_dataset = create_dataset(x_train, y_train, edge_index_train)
+    valid_dataset = create_dataset(x_valid, y_valid, edge_index_valid)
+    test_dataset = create_dataset(x_test, y_test, edge_index_test)
+
+    # Create dataloaders
+    train_loader = torch_geometric.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+    valid_loader = torch_geometric.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+    test_loader = torch_geometric.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+
+    return train_loader, valid_loader, test_loader
 
 
 def get_dataloader(batch_size, xy_train, xy_valid, xy_test):
@@ -105,8 +144,12 @@ def get_neighbour_channels(
     return sel_channels
 
 
-def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
+def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"], keep_all_channels=False):
     """Function that select only selected channels from the input data"""
+
+    if keep_all_channels:
+        return x, adjacency_mtx
+    
     sel_channels = get_neighbour_channels(
         adjacency_mtx, ch_names, n_steps=n_steps, seed_nodes=seed_nodes
     )
@@ -116,16 +159,16 @@ def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
         if ch in sel_channels:
             idx_sel_channels.append(k)
     idx_sel_channels = np.array(idx_sel_channels)  # idx selected channels
-
     if idx_sel_channels.shape[0] != x.shape[1]:
         x = x[:, idx_sel_channels, :]
         sel_channels_ = np.array(ch_names)[idx_sel_channels]
+        adjacency_mtx = adjacency_mtx[idx_sel_channels, :][:, idx_sel_channels]
         sel_channels_ = list(sel_channels_)
         # should correspond to sel_channels ordered based on ch_names ordering
         print("Sampling channels: {0}".format(sel_channels_))
     else:
         print("Sampling all channels available: {0}".format(ch_names))
-    return x
+    return x, adjacency_mtx
 
 
 class LeaveOneSessionOut(object):
@@ -163,6 +206,7 @@ class LeaveOneSessionOut(object):
         tmax=None,
         save_prepared_dataset=None,
         n_steps_channel_selection=None,
+        return_graph=False
     ):
         """This function returns the pre-processed datasets (training, validation and test sets).
 
@@ -305,34 +349,38 @@ class LeaveOneSessionOut(object):
 
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train = sample_channels(
+            x_train, adjacency_mtx_train = sample_channels(
                 x_train,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_valid = sample_channels(
+            x_valid, adjacency_mtx_valid = sample_channels(
                 x_valid,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_test = sample_channels(
+            x_test, adjacency_mtx_test = sample_channels(
                 x_test,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
 
-        # swap axes: from (N_examples, C, T) to (N_examples, T, C)
-        x_train = np.swapaxes(x_train, -1, -2)
-        x_valid = np.swapaxes(x_valid, -1, -2)
-        x_test = np.swapaxes(x_test, -1, -2)
+        if return_graph:
+            # graph dataloaders
+            train_loader, valid_loader, test_loader = get_graph_dataloader(batch_size, (x_train, y_train, adjacency_mtx_train), (x_valid, y_valid, adjacency_mtx_valid), (x_test, y_test, adjacency_mtx_test))
+        else:
+            # swap axes: from (N_examples, C, T) to (N_examples, T, C)
+            x_train = np.swapaxes(x_train, -1, -2)
+            x_valid = np.swapaxes(x_valid, -1, -2)
+            x_test = np.swapaxes(x_test, -1, -2)
 
-        # dataloaders
-        train_loader, valid_loader, test_loader = get_dataloader(
-            batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
-        )
+            # dataloaders
+            train_loader, valid_loader, test_loader = get_dataloader(
+                batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
+            )
         datasets = {}
         datasets["train"] = train_loader
         datasets["valid"] = valid_loader
@@ -382,6 +430,7 @@ class LeaveOneSubjectOut(object):
         tmax=None,
         save_prepared_dataset=None,
         n_steps_channel_selection=None,
+        return_graph=False,
     ):
         """This function returns the pre-processed datasets (training, validation and test sets).
 
@@ -557,34 +606,38 @@ class LeaveOneSubjectOut(object):
 
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train = sample_channels(
+            x_train, adjacency_mtx_train = sample_channels(
                 x_train,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_valid = sample_channels(
+            x_valid, adjacency_mtx_valid = sample_channels(
                 x_valid,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_test = sample_channels(
+            x_test, adjacency_mtx_test = sample_channels(
                 x_test,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
 
-        # swap axes: from (N_examples, C, T) to (N_examples, T, C)
-        x_train = np.swapaxes(x_train, -1, -2)
-        x_valid = np.swapaxes(x_valid, -1, -2)
-        x_test = np.swapaxes(x_test, -1, -2)
+        if return_graph:
+            # graph dataloaders
+            train_loader, valid_loader, test_loader = get_graph_dataloader(batch_size, (x_train, y_train, adjacency_mtx_train), (x_valid, y_valid, adjacency_mtx_valid), (x_test, y_test, adjacency_mtx_test))
+        else:
+            # swap axes: from (N_examples, C, T) to (N_examples, T, C)
+            x_train = np.swapaxes(x_train, -1, -2)
+            x_valid = np.swapaxes(x_valid, -1, -2)
+            x_test = np.swapaxes(x_test, -1, -2)
 
-        # dataloaders
-        train_loader, valid_loader, test_loader = get_dataloader(
-            batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
-        )
+            # dataloaders
+            train_loader, valid_loader, test_loader = get_dataloader(
+                batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
+            )
         datasets = {}
         datasets["train"] = train_loader
         datasets["valid"] = valid_loader
