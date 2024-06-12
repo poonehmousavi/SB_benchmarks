@@ -126,9 +126,9 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
     dims: !ref <dims_to_normalize>
 
 # WEIGHTS AND BIASES Configuration
-project: "brainlm_finetune"
+project: "brainlm"
 mode: "online"
-entity: "lmbrain"
+entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # SSL Configuration

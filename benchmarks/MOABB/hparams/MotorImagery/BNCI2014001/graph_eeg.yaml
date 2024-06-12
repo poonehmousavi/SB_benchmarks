@@ -121,9 +121,9 @@ augment: !new:speechbrain.augment.augmenter.Augmenter
         !ref <add_noise_white>]
 
 # WEIGHTS AND BIASES Configuration
-project: "pretrain_finetune_brainlm"
+project: "brainlm"
 mode: "online"
-entity: "lmbrain"
+entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # DATA NORMALIZATION

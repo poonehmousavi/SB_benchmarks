@@ -137,9 +137,9 @@ cnn_poolstride: !ref <cnn_poolstride_> * 4 # same resolution as for EEGNet resea
 dropout: 0.144 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
 
 # WEIGHTS AND BIASES Configuration
-project: "brainlm_finetune"
+project: "brainlm"
 mode: "online"
-entity: "lmbrain"
+entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # SSL Configuration

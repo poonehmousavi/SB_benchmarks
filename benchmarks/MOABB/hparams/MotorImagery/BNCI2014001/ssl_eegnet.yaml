@@ -150,9 +150,9 @@ dropout: 0.008464 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
 activation_type: 'elu'
 
 # WEIGHTS AND BIASES Configuration
-project: "brainlm_finetune"
-mode: "disabled"
-entity: "lmbrain"
+project: "brainlm"
+mode: "online"
+entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # SSL Configuration

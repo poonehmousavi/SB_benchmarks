@@ -128,9 +128,9 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
     dims: !ref <dims_to_normalize>
 
 # WEIGHTS AND BIASES Configuration
-project: "brainlm_pretrain"
-mode: "disabled"
-entity: "yoshua-bengio"
+project: "brainlm"
+mode: "online"
+entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # MODEL
