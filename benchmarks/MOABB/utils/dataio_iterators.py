@@ -206,7 +206,8 @@ class LeaveOneSessionOut(object):
         tmax=None,
         save_prepared_dataset=None,
         n_steps_channel_selection=None,
-        return_graph=False
+        return_graph=False,
+        keep_all_channels=False
     ):
         """This function returns the pre-processed datasets (training, validation and test sets).
 
@@ -354,18 +355,21 @@ class LeaveOneSessionOut(object):
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
             x_valid, adjacency_mtx_valid = sample_channels(
                 x_valid,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
             x_test, adjacency_mtx_test = sample_channels(
                 x_test,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
 
         if return_graph:
@@ -431,6 +435,7 @@ class LeaveOneSubjectOut(object):
         save_prepared_dataset=None,
         n_steps_channel_selection=None,
         return_graph=False,
+        keep_all_channels=False
     ):
         """This function returns the pre-processed datasets (training, validation and test sets).
 
@@ -611,18 +616,21 @@ class LeaveOneSubjectOut(object):
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
             x_valid, adjacency_mtx_valid = sample_channels(
                 x_valid,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
             x_test, adjacency_mtx_test = sample_channels(
                 x_test,
                 data_dict["adjacency_mtx"],
                 data_dict["channels"],
                 n_steps=n_steps_channel_selection,
+                keep_all_channels=keep_all_channels,
             )
 
         if return_graph:
