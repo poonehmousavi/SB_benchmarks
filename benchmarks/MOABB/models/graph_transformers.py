@@ -213,7 +213,6 @@ class STGNN(torch.nn.Module):
         # Spatial Graph convolution
         self.flatten = torch.nn.Flatten()
         self.gnn_conv = GIN(in_channels, embed_dim, num_layers=2)
-        self.dropout = torch.nn.Dropout(p=dropout)
         self.global_pool = global_mean_pool
 
         self.dense_module = torch.nn.Sequential(
@@ -240,7 +239,6 @@ class STGNN(torch.nn.Module):
         x = self.flatten(x)
         x = self.gnn_conv(x, graph.edge_index)
         x = self.activation(x)
-        x = self.dropout(x)
         x = self.global_pool(x, graph.batch)  # (B, embed_dim)
         x = self.dense_module(x)
 
