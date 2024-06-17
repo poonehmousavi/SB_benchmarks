@@ -113,10 +113,6 @@ class STGNN(torch.nn.Module):
         cnn_temporal_kernels=8,
         cnn_temporal_kernelsize=(33, 1),
         cnn_temporal_pool=(8, 1),
-        cnn_septemporal_depth_multiplier=1,
-        cnn_septemporal_kernelsize=(21, 1),
-        cnn_septemporal_point_kernels=None,
-        cnn_septemporal_pool=(8, 1),
         cnn_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
@@ -155,56 +151,47 @@ class STGNN(torch.nn.Module):
             ),
         )
 
-        # Separable temporal convolution
-        cnn_septemporal_kernels = (
-            cnn_temporal_kernels * cnn_septemporal_depth_multiplier
+        self.conv_module.add_module(
+            "pool_0",
+            sb.nnet.pooling.Pooling2d(
+                pool_type=cnn_pool_type,
+                kernel_size=cnn_temporal_pool,
+                stride=cnn_temporal_pool,
+                pool_axis=[1, 2],
+            ),
         )
+        self.conv_module.add_module("act_0", self.activation)
+        self.conv_module.add_module("dropout_0", torch.nn.Dropout(p=dropout))
+
         self.conv_module.add_module(
             "conv_1",
             sb.nnet.CNN.Conv2d(
                 in_channels=cnn_temporal_kernels,
-                out_channels=cnn_septemporal_kernels,
-                kernel_size=cnn_septemporal_kernelsize,
-                groups=cnn_temporal_kernels,
-                padding="same",
-                padding_mode="constant",
-                bias=False,
-                swap=True,
-            ),
-        )
-        self.conv_module.add_module("act_1", self.activation)
-
-        self.conv_module.add_module(
-            "conv_2",
-            sb.nnet.CNN.Conv2d(
-                in_channels=cnn_septemporal_kernels,
-                out_channels=cnn_septemporal_point_kernels,
-                kernel_size=(1, 1),
+                out_channels=cnn_temporal_kernels,
+                kernel_size=cnn_temporal_kernelsize,
                 padding="valid",
                 bias=False,
                 swap=True,
             ),
         )
-
         self.conv_module.add_module(
-            "bnorm_2",
+            "bnorm_1",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_septemporal_point_kernels,
-                momentum=0.01,
-                affine=True,
+                input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
             ),
         )
-        self.conv_module.add_module("act_2", self.activation)
+
         self.conv_module.add_module(
-            "pool_2",
+            "pool_1",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
-                kernel_size=cnn_septemporal_pool,
-                stride=cnn_septemporal_pool,
+                kernel_size=cnn_temporal_pool,
+                stride=cnn_temporal_pool,
                 pool_axis=[1, 2],
             ),
         )
-        self.conv_module.add_module("dropout_2", torch.nn.Dropout(p=dropout))
+        self.conv_module.add_module("act_1", self.activation)
+        self.conv_module.add_module("dropout_1", torch.nn.Dropout(p=dropout))
 
         # Shape of intermediate feature maps
         node_fts = self.conv_module(torch.ones((1, self.T, 1, 1)))
@@ -216,8 +203,6 @@ class STGNN(torch.nn.Module):
         self.global_pool = global_mean_pool
 
         self.dense_module = torch.nn.Sequential(
-            # torch.nn.Linear(embed_dim, embed_dim),
-            # self.activation,
             torch.nn.Linear(embed_dim, dense_n_neurons),
             torch.nn.LogSoftmax(dim=1)
         )

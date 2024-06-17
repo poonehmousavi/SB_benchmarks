@@ -137,16 +137,7 @@ sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 input_shape: [null, !ref <T>, !ref <C>, null]
 cnn_temporal_kernels: 61 # @orion_step1: --cnn_temporal_kernels~"uniform(4, 64,discrete=True)"
 cnn_temporal_kernelsize: 51 # @orion_step1: --cnn_temporal_kernelsize~"uniform(24, 62,discrete=True)"
-cnn_spatial_max_norm: 1.  # kernel max-norm constaint of the spatial depthwise conv. layer
 cnn_temporal_pool: 4
-cnn_septemporal_depth_multiplier: 1  # depth multiplier for the separable temporal conv. layer
-## number of temporal filters in the separable temporal conv. layer
-cnn_septemporal_point_kernels: 61
-cnn_septemporal_kernelsize_: 15 # @orion_step1: --cnn_septemporal_kernelsize_~"uniform(3, 24,discrete=True)"
-max_cnn_temporal_pool: 4
-cnn_septemporal_kernelsize: !apply:round
-    - !ref <cnn_septemporal_kernelsize_> * <max_cnn_temporal_pool> / <cnn_temporal_pool>
-cnn_septemporal_pool: 14 # @orion_step1: --cnn_septemporal_pool~"uniform(1, 8,discrete=True)"
 cnn_pool_type: 'avg'
 dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
 dropout: 0.2 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
@@ -157,10 +148,6 @@ model: !new:models.graph_transformers.STGNN
     cnn_temporal_kernels: !ref <cnn_temporal_kernels>
     cnn_temporal_kernelsize: [!ref <cnn_temporal_kernelsize>, 1]
     cnn_temporal_pool: [!ref <cnn_temporal_pool>, 1]
-    cnn_septemporal_depth_multiplier: !ref <cnn_septemporal_depth_multiplier>
-    cnn_septemporal_kernelsize: [!ref <cnn_septemporal_kernelsize>, 1]
-    cnn_septemporal_point_kernels: !ref <cnn_septemporal_point_kernels>
-    cnn_septemporal_pool: [!ref <cnn_septemporal_pool>, 1]
     cnn_pool_type: !ref <cnn_pool_type>
     activation_type: !ref <activation_type>
     embed_dim: !ref <embed_dim>
