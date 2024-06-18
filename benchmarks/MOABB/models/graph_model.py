@@ -3,6 +3,7 @@
 """
 import torch
 import torch.nn.functional as F
+import torch_geometric
 from torch_geometric.nn import GCNConv, GIN, global_mean_pool
 from torch_geometric_temporal.nn.recurrent import GConvGRU
 from torch.nn import MultiheadAttention
@@ -101,7 +102,7 @@ class STGNN(torch.nn.Module):
     Example
     -------
     >>> inp_tensor = torch.rand([1, 200, 32, 1])
-    >>> model = GraphTransformer(input_shape=inp_tensor.shape)
+    >>> model = STGNN(input_shape=inp_tensor.shape)
     >>> output = model(node_fts, edge_index)
     >>> output.shape
     torch.Size([1,4])
@@ -113,6 +114,9 @@ class STGNN(torch.nn.Module):
         cnn_temporal_kernels=8,
         cnn_temporal_kernelsize=(33, 1),
         cnn_temporal_pool=(8, 1),
+        cnn_temporal_kernels_multiplier=1,
+        cnn_rep_kernels=32,
+        cnn_rep_kernelsize=(8, 1),
         cnn_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
@@ -130,9 +134,9 @@ class STGNN(torch.nn.Module):
             self.activation = torch.nn.ReLU()
 
         self.T = input_shape[1]
-        self.conv_module = torch.nn.Sequential()
+        self.temp_conv_module = torch.nn.Sequential()
         # Temporal convolution
-        self.conv_module.add_module(
+        self.temp_conv_module.add_module(
             "conv_0",
             sb.nnet.CNN.Conv2d(
                 in_channels=1,
@@ -144,14 +148,14 @@ class STGNN(torch.nn.Module):
                 swap=True,
             ),
         )
-        self.conv_module.add_module(
+        self.temp_conv_module.add_module(
             "bnorm_0",
             sb.nnet.normalization.BatchNorm2d(
                 input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
             ),
         )
 
-        self.conv_module.add_module(
+        self.temp_conv_module.add_module(
             "pool_0",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
@@ -160,28 +164,30 @@ class STGNN(torch.nn.Module):
                 pool_axis=[1, 2],
             ),
         )
-        self.conv_module.add_module("act_0", self.activation)
-        self.conv_module.add_module("dropout_0", torch.nn.Dropout(p=dropout))
+        self.temp_conv_module.add_module("act_0", self.activation)
+        self.temp_conv_module.add_module("dropout_0", torch.nn.Dropout(p=dropout))
 
-        self.conv_module.add_module(
+        updated_cnn_temporal_kernels = cnn_temporal_kernels * cnn_temporal_kernels_multiplier
+
+        self.temp_conv_module.add_module(
             "conv_1",
             sb.nnet.CNN.Conv2d(
                 in_channels=cnn_temporal_kernels,
-                out_channels=cnn_temporal_kernels,
+                out_channels=updated_cnn_temporal_kernels,
                 kernel_size=cnn_temporal_kernelsize,
                 padding="valid",
                 bias=False,
                 swap=True,
             ),
         )
-        self.conv_module.add_module(
+        self.temp_conv_module.add_module(
             "bnorm_1",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
+                input_size=updated_cnn_temporal_kernels, momentum=0.01, affine=True,
             ),
         )
 
-        self.conv_module.add_module(
+        self.temp_conv_module.add_module(
             "pool_1",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
@@ -190,20 +196,53 @@ class STGNN(torch.nn.Module):
                 pool_axis=[1, 2],
             ),
         )
-        self.conv_module.add_module("act_1", self.activation)
-        self.conv_module.add_module("dropout_1", torch.nn.Dropout(p=dropout))
+        self.temp_conv_module.add_module("act_1", self.activation)
+        self.temp_conv_module.add_module("dropout_1", torch.nn.Dropout(p=dropout))
 
         # Shape of intermediate feature maps
-        node_fts = self.conv_module(torch.ones((1, self.T, 1, 1)))
+        node_fts = self.temp_conv_module(torch.ones((1, self.T, 1, 1)))
         in_channels = self._get_temp_size(node_fts)
 
         # Spatial Graph convolution
-        self.flatten = torch.nn.Flatten()
-        self.gnn_conv = GIN(in_channels, embed_dim, num_layers=2)
+        self.spatial_gnn = torch_geometric.nn.Sequential('x, edge_index', [
+            (torch.nn.Flatten(), 'x -> x'),
+            (GCNConv(in_channels, embed_dim), 'x, edge_index -> x'),
+            (self.activation, 'x -> x'),
+            (GCNConv(embed_dim, embed_dim), 'x, edge_index -> x'),
+            (self.activation, 'x -> x'),
+        ])
         self.global_pool = global_mean_pool
 
+        self.rep_conv_module = torch.nn.Sequential()
+
+        self.rep_conv_module.add_module(
+            "conv_0",
+            sb.nnet.CNN.Conv2d(
+                in_channels=1,
+                out_channels=cnn_rep_kernels,
+                kernel_size=cnn_rep_kernelsize,
+                padding="valid",
+                bias=False,
+                swap=True,
+            ),
+        )
+        self.rep_conv_module.add_module(
+            "bnorm_0",
+            sb.nnet.normalization.BatchNorm2d(
+                input_size=cnn_rep_kernels,
+                momentum=0.01,
+                affine=True,
+            ),
+        )
+        self.rep_conv_module.add_module("act_0", self.activation)
+        self.rep_conv_module.add_module("dropout_0", torch.nn.Dropout(p=dropout))
+        self.rep_conv_module.add_module("flatten_0", torch.nn.Flatten())
+
+        # Shape of intermediate feature maps
+        out = self.rep_conv_module(torch.ones((1, embed_dim, 1, 1)))
+        in_channels = out.shape[-1]
         self.dense_module = torch.nn.Sequential(
-            torch.nn.Linear(embed_dim, dense_n_neurons),
+            torch.nn.Linear(in_channels, dense_n_neurons),
             torch.nn.LogSoftmax(dim=1)
         )
 
@@ -220,10 +259,10 @@ class STGNN(torch.nn.Module):
             Batch vector for GNN.
         """
         x = graph.x.unsqueeze(-1).unsqueeze(-1)
-        x = self.conv_module(x)
-        x = self.flatten(x)
-        x = self.gnn_conv(x, graph.edge_index)
-        x = self.activation(x)
+        x = self.temp_conv_module(x)
+        x = self.spatial_gnn(x, graph.edge_index)
+        x = x.unsqueeze(-1).unsqueeze(-1)
+        x = self.rep_conv_module(x)
         x = self.global_pool(x, graph.batch)  # (B, embed_dim)
         x = self.dense_module(x)
 

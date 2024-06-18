@@ -64,14 +64,14 @@ lr_annealing: !new:speechbrain.nnet.schedulers.CyclicLRScheduler
     base_lr: !ref <base_lr>
     max_lr: !ref <max_lr>
     step_size: !ref <step_size>
-label_smoothing: 0.2
+label_smoothing: 0.0
 loss: !name:speechbrain.nnet.losses.nll_loss
     label_smoothing: !ref <label_smoothing>
 optimizer: !name:torch.optim.Adam
     lr: !ref <lr>
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter  # epoch counter
     limit: !ref <number_of_epochs>
-batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
+batch_size_exponent: 5 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discrete=True)"
 batch_size: !ref 2 ** <batch_size_exponent>
 valid_ratio: 0.2
 return_graph: True
@@ -128,15 +128,18 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
     dims: !ref <dims_to_normalize>
 
 # WEIGHTS AND BIASES Configuration
-project: "brainlm"
+project: "BNCI2014001"
 mode: "online"
 entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
-cnn_temporal_kernels: 61 # @orion_step1: --cnn_temporal_kernels~"uniform(4, 64,discrete=True)"
+cnn_temporal_kernels: 16 # @orion_step1: --cnn_temporal_kernels~"uniform(4, 64,discrete=True)"
+cnn_temporal_kernels_multiplier: 2
 cnn_temporal_kernelsize: 51 # @orion_step1: --cnn_temporal_kernelsize~"uniform(24, 62,discrete=True)"
+cnn_rep_kernels: 32
+cnn_rep_kernelsize: 8
 cnn_temporal_pool: 4
 cnn_pool_type: 'avg'
 dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
@@ -148,6 +151,9 @@ model: !new:models.graph_model.STGNN
     cnn_temporal_kernels: !ref <cnn_temporal_kernels>
     cnn_temporal_kernelsize: [!ref <cnn_temporal_kernelsize>, 1]
     cnn_temporal_pool: [!ref <cnn_temporal_pool>, 1]
+    cnn_temporal_kernels_multiplier: !ref <cnn_temporal_kernels_multiplier>
+    cnn_rep_kernels: !ref <cnn_rep_kernels>
+    cnn_rep_kernelsize: [!ref <cnn_rep_kernelsize>, 1]
     cnn_pool_type: !ref <cnn_pool_type>
     activation_type: !ref <activation_type>
     embed_dim: !ref <embed_dim>
