@@ -157,7 +157,7 @@ class MOABBBrain(sb.Brain):
                 ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
                 # Log validation stats to wandb
-                wandb.log({"epoch": epoch, **self.last_eval_stats})
+                wandb.log({**self.last_eval_stats})
                 # Learning rate scheduler
                 if hasattr(self.hparams, "lr_annealing"):
                     old_lr, new_lr = self.hparams.lr_annealing(epoch)
@@ -432,6 +432,7 @@ def prepare_dataset_iterators(hparams):
         save_prepared_dataset=hparams["save_prepared_dataset"],
         n_steps_channel_selection=hparams["n_steps_channel_selection"],
         return_graph=hparams["return_graph"],
+        keep_all_channels=hparams["keep_all_channels"],
     )
 
     return tail_path, datasets
