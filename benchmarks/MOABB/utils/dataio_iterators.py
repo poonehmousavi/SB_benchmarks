@@ -6,9 +6,10 @@ Different training strategies have been implemented as distinct data iterators, 
 - Leave-One-Session-Out
 - Leave-One-Subject-Out
 
-Author
+Authors
 ------
 Davide Borra, 2021
+Drew Wagner, 2024
 """
 
 import abc
