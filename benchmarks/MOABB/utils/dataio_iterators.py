@@ -178,7 +178,7 @@ class BaseDataIOIterator(abc.ABC):
         n_steps_channel_selection: Optional[int] = None,
         events_to_load: Optional[List[str]] = None,
         save_prepared_dataset: bool = True,
-    ) -> tuple[str, dict[str, _SplitDataloaders]]:
+    ) -> Tuple[str, _SplitDataloaders]:
         """This function returns the pre-processed datasets (training, validation and test sets).
 
         Arguments
