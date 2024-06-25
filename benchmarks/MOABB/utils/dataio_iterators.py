@@ -128,7 +128,14 @@ def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
     return x
 
 
-class LeaveOneSessionOut(object):
+class BaseDataIOIterator:
+    
+    def __init__(self, tag, seed):
+        self.iterator_tag = tag
+        np.random.seed(seed)
+
+
+class LeaveOneSessionOut(BaseDataIOIterator):
     """Leave one session out iterator for MOABB datasets.
     Designing within-subject, cross-session and session-agnostic iterations on the dataset for a specific paradigm.
     For each subject, one session is held back as test set and the remaining ones are used to train neural networks.
@@ -142,8 +149,7 @@ class LeaveOneSessionOut(object):
     """
 
     def __init__(self, seed):
-        self.iterator_tag = "leave-one-session-out"
-        np.random.seed(seed)
+        super().__init__("leave-one-session-out", seed)
 
     def prepare(
         self,
@@ -347,7 +353,7 @@ class LeaveOneSessionOut(object):
         return tail_path, datasets
 
 
-class LeaveOneSubjectOut(object):
+class LeaveOneSubjectOut(BaseDataIOIterator):
     """Leave one subject out iterator for MOABB datasets.
     Designing cross-subject, cross-session and subject-agnostic iterations on the dataset for a specific paradigm.
     One subject is held back as test set and the remaining ones are used to train neural networks.
@@ -361,8 +367,7 @@ class LeaveOneSubjectOut(object):
     """
 
     def __init__(self, seed):
-        self.iterator_tag = "leave-one-subject-out"
-        np.random.seed(seed)
+        super().__init__("leave-one-subject-out", seed)
 
     def prepare(
         self,
