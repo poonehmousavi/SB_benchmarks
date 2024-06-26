@@ -32,12 +32,9 @@ class STGNN(torch.nn.Module):
     def __init__(
         self,
         input_shape,  # (1, T, C, 1)
-        cnn_temporal_kernels=8,
-        cnn_temporal_kernelsize=(33, 1),
-        cnn_temporal_pool=(8, 1),
-        cnn_temporal_kernels_multiplier=1,
-        cnn_rep_kernels=32,
-        cnn_rep_kernelsize=(8, 1),
+        cnn_kernels,
+        cnn_kernelsize,
+        cnn_pool, 
         cnn_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
@@ -61,8 +58,8 @@ class STGNN(torch.nn.Module):
             "conv_0",
             sb.nnet.CNN.Conv2d(
                 in_channels=1,
-                out_channels=cnn_temporal_kernels,
-                kernel_size=cnn_temporal_kernelsize,
+                out_channels=cnn_kernels[0],
+                kernel_size=(cnn_kernelsize[0], 1),
                 padding="same",
                 padding_mode="constant",
                 bias=False,
@@ -72,7 +69,7 @@ class STGNN(torch.nn.Module):
         self.temp_conv_module.add_module(
             "bnorm_0",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
+                input_size=cnn_kernels[0], momentum=0.01, affine=True,
             ),
         )
 
@@ -80,22 +77,20 @@ class STGNN(torch.nn.Module):
             "pool_0",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
-                kernel_size=cnn_temporal_pool,
-                stride=cnn_temporal_pool,
+                kernel_size=(cnn_pool[0], 1),
+                stride=(cnn_pool[0], 1),
                 pool_axis=[1, 2],
             ),
         )
         self.temp_conv_module.add_module("act_0", self.activation)
         self.temp_conv_module.add_module("dropout_0", torch.nn.Dropout(p=dropout))
 
-        updated_cnn_temporal_kernels = cnn_temporal_kernels * cnn_temporal_kernels_multiplier
-
         self.temp_conv_module.add_module(
             "conv_1",
             sb.nnet.CNN.Conv2d(
-                in_channels=cnn_temporal_kernels,
-                out_channels=updated_cnn_temporal_kernels,
-                kernel_size=cnn_temporal_kernelsize,
+                in_channels=cnn_kernels[0],
+                out_channels=cnn_kernels[1],
+                kernel_size=(cnn_kernelsize[1], 1),
                 padding="valid",
                 bias=False,
                 swap=True,
@@ -104,7 +99,7 @@ class STGNN(torch.nn.Module):
         self.temp_conv_module.add_module(
             "bnorm_1",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=updated_cnn_temporal_kernels, momentum=0.01, affine=True,
+                input_size=cnn_kernels[1], momentum=0.01, affine=True,
             ),
         )
 
@@ -112,8 +107,8 @@ class STGNN(torch.nn.Module):
             "pool_1",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
-                kernel_size=cnn_temporal_pool,
-                stride=cnn_temporal_pool,
+                kernel_size=(cnn_pool[1], 1),
+                stride=(cnn_pool[1], 1),
                 pool_axis=[1, 2],
             ),
         )
@@ -140,8 +135,8 @@ class STGNN(torch.nn.Module):
             "conv_0",
             sb.nnet.CNN.Conv2d(
                 in_channels=1,
-                out_channels=cnn_rep_kernels,
-                kernel_size=cnn_rep_kernelsize,
+                out_channels=cnn_kernels[2],
+                kernel_size=(cnn_kernelsize[2], 1),
                 padding="valid",
                 bias=False,
                 swap=True,
@@ -150,7 +145,7 @@ class STGNN(torch.nn.Module):
         self.rep_conv_module.add_module(
             "bnorm_0",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_rep_kernels,
+                input_size=cnn_kernels[2],
                 momentum=0.01,
                 affine=True,
             ),
@@ -159,8 +154,8 @@ class STGNN(torch.nn.Module):
             "pool_0",
             sb.nnet.pooling.Pooling2d(
                 pool_type=cnn_pool_type,
-                kernel_size=cnn_temporal_pool,
-                stride=cnn_temporal_pool,
+                kernel_size=(cnn_pool[2], 1),
+                stride=(cnn_pool[2], 1),
                 pool_axis=[1, 2],
             ),
         )
@@ -232,7 +227,7 @@ class TGNN(torch.nn.Module):
         input_shape,  # (1, T, C, 1)
         cnn_kernels,
         cnn_kernelsize,
-        cnn_pool, 
+        cnn_pool,
         cnn_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
