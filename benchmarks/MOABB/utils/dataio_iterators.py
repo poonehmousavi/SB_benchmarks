@@ -132,15 +132,16 @@ def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
         print("Sampling channels: {0}".format(ch_names))
     else:
         print("Sampling all channels available: {0}".format(ch_names))
-    return x, ch_names
+    return x, idx_sel_channels, ch_names
 
 
 class _SplitDataloaders(TypedDict):
     train: DataLoader
     valid: DataLoader
     test: DataLoader
-    ch_positions: np.ndarray
     ch_names: List[str]
+    ch_positions: np.ndarray
+    adjacency_mtx: np.ndarray
 
 
 XYSplits = namedtuple(
@@ -281,19 +282,19 @@ class BaseDataIOIterator(abc.ABC):
 
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train, ch_names = sample_channels(
+            x_train, ch_idx, ch_names = sample_channels(
                 x_train,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_valid, _ = sample_channels(
+            x_valid, *_ = sample_channels(
                 x_valid,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_test, _ = sample_channels(
+            x_test, *_ = sample_channels(
                 x_test,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
@@ -313,12 +314,15 @@ class BaseDataIOIterator(abc.ABC):
         ch_positions = target_data_dict["ch_positions"]
         ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
 
+        adj_mtx = target_data_dict["adjacency_mtx"][ch_idx, :][:, ch_idx]
+
         datasets: _SplitDataloaders = dict(
             train=train_loader,
             valid=valid_loader,
             test=test_loader,
-            channel_positions=ch_positions,
             ch_names=ch_names,
+            channel_positions=ch_positions,
+            adjacency_mtx=adj_mtx,
         )
 
         tail_path = self.get_tail_path(subject, target_data_dict.get("session"))
