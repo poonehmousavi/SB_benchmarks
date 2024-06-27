@@ -15,7 +15,7 @@ Drew Wagner, 2024
 import abc
 import os
 from collections import namedtuple
-from typing import List, Optional, Tuple, TypedDict
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -126,19 +126,21 @@ def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
 
     if idx_sel_channels.shape[0] != x.shape[1]:
         x = x[:, idx_sel_channels, :]
-        sel_channels_ = np.array(ch_names)[idx_sel_channels]
-        sel_channels_ = list(sel_channels_)
+        ch_names = np.array(ch_names)[idx_sel_channels]
+        ch_names = list(ch_names)
         # should correspond to sel_channels ordered based on ch_names ordering
-        print("Sampling channels: {0}".format(sel_channels_))
+        print("Sampling channels: {0}".format(ch_names))
     else:
         print("Sampling all channels available: {0}".format(ch_names))
-    return x
+    return x, ch_names
 
 
 class _SplitDataloaders(TypedDict):
     train: DataLoader
     valid: DataLoader
     test: DataLoader
+    ch_positions: np.ndarray
+    ch_names: List[str]
 
 
 XYSplits = namedtuple(
@@ -150,6 +152,7 @@ class _DataDict(TypedDict):
     srate: int
     original_interval: Tuple[float, float]
     adjacency_mtx: np.ndarray
+    ch_positions: Dict[str, List[float]]
     channels: List[str]
     subject: str
 
@@ -256,41 +259,41 @@ class BaseDataIOIterator(abc.ABC):
         )
 
         # time cropping
-        if interval != target_data_dict["original_interval"]:
+        if interval != target_data_dict["interval"]:
             x_train = crop_signals(
                 x=x_train,
                 srate=target_data_dict["srate"],
-                interval_in=target_data_dict["original_interval"],
+                interval_in=target_data_dict["interval"],
                 interval_out=interval,
             )
             x_valid = crop_signals(
                 x=x_valid,
                 srate=target_data_dict["srate"],
-                interval_in=target_data_dict["original_interval"],
+                interval_in=target_data_dict["interval"],
                 interval_out=interval,
             )
             x_test = crop_signals(
                 x=x_test,
                 srate=target_data_dict["srate"],
-                interval_in=target_data_dict["original_interval"],
+                interval_in=target_data_dict["interval"],
                 interval_out=interval,
             )
 
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train = sample_channels(
+            x_train, ch_names = sample_channels(
                 x_train,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_valid = sample_channels(
+            x_valid, _ = sample_channels(
                 x_valid,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
                 n_steps=n_steps_channel_selection,
             )
-            x_test = sample_channels(
+            x_test, _ = sample_channels(
                 x_test,
                 target_data_dict["adjacency_mtx"],
                 target_data_dict["channels"],
@@ -306,12 +309,19 @@ class BaseDataIOIterator(abc.ABC):
         train_loader, valid_loader, test_loader = get_dataloader(
             batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
         )
-        datasets = {}
-        datasets["train"] = train_loader
-        datasets["valid"] = valid_loader
-        datasets["test"] = test_loader
 
-        tail_path = self.get_tail_path(subject, target_data_dict["session"])
+        ch_positions = target_data_dict["ch_positions"]
+        ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
+
+        datasets: _SplitDataloaders = dict(
+            train=train_loader,
+            valid=valid_loader,
+            test=test_loader,
+            channel_positions=ch_positions,
+            ch_names=ch_names,
+        )
+
+        tail_path = self.get_tail_path(subject, target_data_dict.get("session"))
         return tail_path, datasets
 
     def validate_dataset_or_raise(self, dataset: MOABBDataset) -> None:
@@ -378,14 +388,31 @@ class LeaveOneSessionOut(BaseDataIOIterator):
 
     def get_data(
         self,
-        target_subject_idx,
-        target_session_idx,
-        valid_ratio,
-        **prepare_data_kwargs,
+        target_subject_idx: int,
+        target_session_idx: Optional[int],
+        valid_ratio: float,
+        dataset: MOABBDataset,
+        data_folder: Optional[str],
+        cached_data_folder: Optional[str],
+        original_sample_rate: int,
+        sample_rate: Optional[int],
+        fmin: Optional[float],
+        fmax: Optional[float],
+        events_to_load: Optional[List[str]],
+        save_prepared_dataset: bool,
     ) -> Tuple[dict, XYSplits]:
         # preparing or loading dataset
         data_dict = prepare_data(
-            idx_subject_to_prepare=target_subject_idx, **prepare_data_kwargs,
+            idx_subject_to_prepare=target_subject_idx,
+            dataset=dataset,
+            data_folder=data_folder,
+            cached_data_folder=cached_data_folder,
+            srate_in=original_sample_rate,
+            srate_out=sample_rate,
+            fmin=fmin,
+            fmax=fmax,
+            save_prepared_dataset=save_prepared_dataset,
+            events_to_load=events_to_load,
         )
 
         x = data_dict["x"]
@@ -394,7 +421,10 @@ class LeaveOneSessionOut(BaseDataIOIterator):
 
         self._validate_metadata_or_raise(metadata)
         sessions = np.unique(metadata.session)
-        sess_id_test = [sessions[target_session_idx]]
+
+        data_dict["session"] = sessions[target_session_idx]
+
+        sess_id_test = [data_dict["session"]]
         sess_id_train = np.setdiff1d(sessions, sess_id_test)
         sess_id_train = list(sess_id_train)
         print(
