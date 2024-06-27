@@ -317,7 +317,7 @@ class TGNN(torch.nn.Module):
         self.rep_conv_module.add_module(
             "conv_0",
             sb.nnet.CNN.Conv2d(
-                in_channels=embed_dim,
+                in_channels=cnn_kernels[1],
                 out_channels=cnn_kernels[2],
                 kernel_size=(cnn_kernelsize[2], 1),
                 padding="valid",
