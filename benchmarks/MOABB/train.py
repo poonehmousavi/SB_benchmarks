@@ -99,7 +99,7 @@ class MOABBBrain(sb.Brain):
     def on_fit_start(self):
         """Gets called at the beginning of ``fit()``"""
         # Initialize wandb
-        run_name = f"exp_bs:{self.hparams.batch_size}_lr:{self.hparams.lr}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        run_name = f"{self.hparams.prefix_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         wandb.init(
             project=self.hparams.project,
             name=run_name,
@@ -156,8 +156,6 @@ class MOABBBrain(sb.Brain):
                     metric_key
                 ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
-                # Log validation stats to wandb
-                wandb.log({**self.last_eval_stats})
                 # Learning rate scheduler
                 if hasattr(self.hparams, "lr_annealing"):
                     old_lr, new_lr = self.hparams.lr_annealing(epoch)
@@ -175,6 +173,9 @@ class MOABBBrain(sb.Brain):
                         train_stats={"loss": self.train_loss},
                         valid_stats=self.last_eval_stats,
                     )
+
+                # Log validation stats to wandb
+                wandb.log({**self.last_eval_stats, "lr": old_lr, "train_loss": self.train_loss})
 
                 if epoch == 1:
                     self.best_eval_stats = self.last_eval_stats
