@@ -208,7 +208,7 @@ run_experiment() {
 
   for target_subject_idx in $(seq 0 1 $(( nsbj - 1 ))); do
     echo "Subject $target_subject_idx"
-    python train.py $hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$output_folder_exp\
+    python SB_benchmarks/benchmarks/MOABB/train.py $hparams --seed=$seed --data_folder=$data_folder --cached_data_folder=$cached_data_folder --output_folder=$output_folder_exp\
       --target_subject_idx=$target_subject_idx --target_session_idx=$target_session_idx \
       --data_iterator_name="$train_mode" $additional_flags
   done
@@ -234,7 +234,7 @@ for i in $(seq 0 1 $(( nruns - 1 ))); do
   fi
 
   # Store the results
-  python utils/parse_results.py $output_folder_exp $metric_file $eval_metric | tee -a  $output_folder/$run_name\_results.txt
+  python SB_benchmarks/benchmarks/MOABB/utils/parse_results.py $output_folder_exp $metric_file $eval_metric | tee -a  $output_folder/$run_name\_results.txt
 
   # Changing Random seed
   seed=$((seed+1))
@@ -242,4 +242,4 @@ done
 
 
 echo 'Final Results (Performance Aggregation)'
-python utils/aggregate_results.py $output_folder $eval_metric | tee -a  $output_folder/aggregated_performance.txt
+python SB_benchmarks/benchmarks/MOABB/utils/aggregate_results.py $output_folder $eval_metric | tee -a  $output_folder/aggregated_performance.txt

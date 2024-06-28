@@ -12,18 +12,25 @@ Davide Borra, 2022
 Mirco Ravanelli, 2023
 """
 
-import pickle
+import datetime
+import logging
 import os
+import pickle
+import sys
+import uuid
+
+import numpy as np
+import speechbrain as sb
 import torch
+import yaml
 from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
-import numpy as np
-import logging
-import sys
+from torch_geometric.data import Data
+from torch_geometric.nn import summary as pyg_summary
+from torchinfo import summary as torchinfo_summary 
 from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
-from torchinfo import summary
-import speechbrain as sb
-import yaml
+
+import wandb
 
 
 class MOABBBrain(sb.Brain):
@@ -41,24 +48,31 @@ class MOABBBrain(sb.Brain):
 
     def compute_forward(self, batch, stage):
         "Given an input batch it computes the model output."
-        inputs = batch[0].to(self.device)
+        if not self.hparams.return_graph:
+            inputs = batch[0].to(self.device)
+            # Perform data augmentation
+            if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augment"):
+                inputs, _ = self.hparams.augment(
+                    inputs.squeeze(3),
+                    lengths=torch.ones(inputs.shape[0], device=self.device),
+                )
+                inputs = inputs.unsqueeze(3)
 
-        # Perform data augmentation
-        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augment"):
-            inputs, _ = self.hparams.augment(
-                inputs.squeeze(3),
-                lengths=torch.ones(inputs.shape[0], device=self.device),
-            )
-            inputs = inputs.unsqueeze(3)
-
-        # Normalization
-        if hasattr(self.hparams, "normalize"):
-            inputs = self.hparams.normalize(inputs)
+            # Normalization
+            if hasattr(self.hparams, "normalize"):
+                inputs = self.hparams.normalize(inputs)
+        else:
+            inputs = batch.to(self.device)
+            if hasattr(self.hparams, "normalize"):
+                inputs.x = self.hparams.normalize(inputs.x)
         return self.modules.model(inputs)
 
     def compute_objectives(self, predictions, batch, stage):
         "Given the network predictions and targets computes the loss."
-        targets = batch[1].to(self.device)
+        if not self.hparams.return_graph:
+            targets = batch[1].to(self.device)
+        else:
+            targets = batch.y.to(self.device)
 
         # Target augmentation
         N_augments = int(predictions.shape[0] / targets.shape[0])
@@ -75,24 +89,46 @@ class MOABBBrain(sb.Brain):
             # From log to linear predictions
             tmp_preds = torch.exp(predictions)
             self.preds.extend(tmp_preds.detach().cpu().numpy())
-            self.targets.extend(batch[1].detach().cpu().numpy())
+            targets_before_augment = batch.y if self.hparams.return_graph else batch[1]
+            self.targets.extend(targets_before_augment.detach().cpu().numpy())
         else:
             if hasattr(self.hparams, "lr_annealing"):
                 self.hparams.lr_annealing.on_batch_end(self.optimizer)
         return loss
 
-    def on_fit_start(self,):
+    def on_fit_start(self):
         """Gets called at the beginning of ``fit()``"""
-        self.init_model(self.hparams.model)
+        # Initialize wandb
+        run_name = f"{self.hparams.prefix_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        wandb.init(
+            project=self.hparams.project,
+            name=run_name,
+            mode=self.hparams.mode,
+            entity=self.hparams.entity,
+        )
+
+        if "skip_init" in hparams and not hparams["skip_init"]:
+            self.init_model(self.hparams.model)
         self.init_optimizers()
-        in_shape = (
-            (1,)
-            + tuple(np.floor(self.hparams.input_shape[1:-1]).astype(int))
-            + (1,)
-        )
-        model_summary = summary(
-            self.hparams.model, input_size=in_shape, device=self.device
-        )
+        if self.hparams.return_graph:
+            # Assume we have a graph object initialized here
+            # For demonstration purposes, using a sample graph
+            sample_graph = Data(
+                x=torch.randn((self.hparams.input_shape[2], self.hparams.input_shape[1])),
+                edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
+            )
+            sample_graph = sample_graph.to(self.device)
+            model_summary = pyg_summary(self.hparams.model, sample_graph)
+        else:
+            in_shape = (
+                (1,)
+                + tuple(np.floor(self.hparams.input_shape[1:-1]).astype(int))
+                + (1,)
+            )
+            model_summary = torchinfo_summary(
+                self.hparams.model, input_size=in_shape, device=self.device
+            )
+
         with open(
             os.path.join(self.hparams.exp_dir, "model.txt"), "w"
         ) as text_file:
@@ -138,6 +174,9 @@ class MOABBBrain(sb.Brain):
                         valid_stats=self.last_eval_stats,
                     )
 
+                # Log validation stats to wandb
+                wandb.log({**self.last_eval_stats, "lr": old_lr, "train_loss": self.train_loss})
+
                 if epoch == 1:
                     self.best_eval_stats = self.last_eval_stats
 
@@ -181,16 +220,22 @@ class MOABBBrain(sb.Brain):
                     )
 
             elif stage == sb.Stage.TEST:
+                # Log final test metrics to wandb
+                wandb.log({**self.last_eval_stats})
                 self.hparams.train_logger.log_stats(
                     stats_meta={
                         "epoch loaded": self.hparams.epoch_counter.current
                     },
-                    test_stats=self.last_eval_stats
-                    if not getattr(self, "log_test_as_valid", False)
-                    else None,
-                    valid_stats=self.last_eval_stats
-                    if getattr(self, "log_test_as_valid", False)
-                    else None,
+                    test_stats=(
+                        self.last_eval_stats
+                        if not getattr(self, "log_test_as_valid", False)
+                        else None
+                    ),
+                    valid_stats=(
+                        self.last_eval_stats
+                        if getattr(self, "log_test_as_valid", False)
+                        else None
+                    ),
                 )
                 # save the averaged checkpoint at the end of the evaluation stage
                 # delete the rest of the intermediate checkpoints
@@ -218,17 +263,21 @@ class MOABBBrain(sb.Brain):
             max_key=max_key, min_key=min_key
         )
         ckpt = sb.utils.checkpoints.average_checkpoints(
-            ckpts, recoverable_name="model",
+            ckpts,
+            recoverable_name="model",
         )
 
         self.hparams.model.load_state_dict(ckpt, strict=True)
         self.hparams.model.eval()
 
     def check_if_best(
-        self, last_eval_stats, best_eval_stats, keys,
+        self,
+        last_eval_stats,
+        best_eval_stats,
+        keys,
     ):
         """Checks if the current model is the best according at least to
-        one of the monitored metrics. """
+        one of the monitored metrics."""
         is_best = False
         for key in keys:
             if key == "loss":
@@ -246,10 +295,25 @@ class MOABBBrain(sb.Brain):
 
 def run_experiment(hparams, run_opts, datasets):
     """This function performs a single training (e.g., single cross-validation fold)"""
-    idx_examples = np.arange(datasets["train"].dataset.tensors[0].shape[0])
+    if not hparams['return_graph']:
+        n_train_samples = datasets["train"].dataset.tensors[0].shape[0]
+        n_valid_samples = datasets["valid"].dataset.tensors[0].shape[0]
+        n_test_samples = datasets["test"].dataset.tensors[0].shape[0]
+        train_labels = datasets["train"].dataset.tensors[1]
+        input_shape = datasets["train"].dataset.tensors[0].shape[1:]
+        train_avg_value = datasets["train"].dataset.tensors[0].mean()
+    else:
+        n_train_samples = len(datasets["train"].dataset)
+        n_valid_samples = len(datasets["valid"].dataset)
+        n_test_samples = len(datasets["test"].dataset)
+        train_labels = np.array([data.y for data in datasets["train"].dataset])
+        input_shape = datasets["train"].dataset[0].x.shape
+        train_avg_value = torch.stack([data.x for data in datasets["train"].dataset], dim=0).mean()
+
+    idx_examples = np.arange(n_train_samples)
     n_examples_perclass = [
         idx_examples[
-            np.where(datasets["train"].dataset.tensors[1] == c)[0]
+            np.where(train_labels == c)[0]
         ].shape[0]
         for c in range(hparams["n_classes"])
     ]
@@ -271,18 +335,18 @@ def run_experiment(hparams, run_opts, datasets):
     logger.info("Experiment directory: {0}".format(hparams["exp_dir"]))
     logger.info(
         "Input shape: {0}".format(
-            datasets["train"].dataset.tensors[0].shape[1:]
+            input_shape
         )
     )
     logger.info(
         "Training set avg value: {0}".format(
-            datasets["train"].dataset.tensors[0].mean()
+            train_avg_value
         )
     )
     datasets_summary = "Number of examples: {0} (training), {1} (validation), {2} (test)".format(
-        datasets["train"].dataset.tensors[0].shape[0],
-        datasets["valid"].dataset.tensors[0].shape[0],
-        datasets["test"].dataset.tensors[0].shape[0],
+        n_train_samples,
+        n_valid_samples,
+        n_test_samples,
     )
     logger.info(datasets_summary)
 
@@ -368,7 +432,10 @@ def prepare_dataset_iterators(hparams):
         tmax=hparams["tmax"],
         save_prepared_dataset=hparams["save_prepared_dataset"],
         n_steps_channel_selection=hparams["n_steps_channel_selection"],
+        return_graph=hparams["return_graph"],
+        keep_all_channels=hparams["keep_all_channels"],
     )
+
     return tail_path, datasets
 
 
@@ -381,16 +448,38 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     tail_path, datasets = prepare_dataset_iterators(hparams)
     # override C and T, to be sure that network input shape matches the dataset (e.g., after time cropping or channel sampling)
-    overrides.update(
-        T=datasets["train"].dataset.tensors[0].shape[1],
-        C=datasets["train"].dataset.tensors[0].shape[-2],
-        n_train_examples=datasets["train"].dataset.tensors[0].shape[0],
-    )
-
+    if not hparams['return_graph']:
+        overrides.update(
+            T=datasets["train"].dataset.tensors[0].shape[1],
+            C=datasets["train"].dataset.tensors[0].shape[-2],
+            n_train_examples=datasets["train"].dataset.tensors[0].shape[0],
+        )
+    else:
+        overrides.update(
+            T=datasets["train"].dataset[0].x.shape[-1],
+            C=datasets["train"].dataset[0].x.shape[0],
+            n_train_examples=len(datasets["train"].dataset),
+        )
     # loading hparams for the each training and evaluation processes
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
-    hparams["exp_dir"] = os.path.join(hparams["output_folder"], tail_path)
+
+    if hparams['sweep_run']:
+        # Extract relevant hyperparameters for path creation
+        hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
+        num_attention_heads = overrides.get(
+            "num_attention_heads", str(uuid.uuid4())
+        )
+        # Generate a random identifier
+        unique_id = str(uuid.uuid4())
+        unique_output_folder = os.path.join(
+            hparams["output_folder"],
+            f"{hidden_size}_{num_attention_heads}_{unique_id}",
+            tail_path,
+        )
+        hparams["exp_dir"] = unique_output_folder
+    else:
+        hparams["exp_dir"] = os.path.join(hparams["output_folder"], tail_path)
 
     # creating experiment directory
     sb.create_experiment_directory(
