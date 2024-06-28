@@ -78,9 +78,16 @@ def get_output_dict(
             resample=srate_out,  # downsample
         )
 
-    x, y, labels, metadata, channels, adjacency_mtx, srate = load_data(
-        paradigm, dataset, [subject]
-    )
+    (
+        x,
+        y,
+        labels,
+        metadata,
+        channels,
+        adjacency_mtx,
+        ch_positions,
+        srate,
+    ) = load_data(paradigm, dataset, [subject])
 
     if verbose == 1:
         for l in np.unique(labels):
@@ -106,6 +113,7 @@ def get_output_dict(
 
     output_dict["channels"] = channels
     output_dict["adjacency_mtx"] = adjacency_mtx
+    output_dict["ch_positions"] = ch_positions
     output_dict["x"] = x
     output_dict["y"] = y
     output_dict["labels"] = labels
@@ -122,6 +130,7 @@ def load_data(paradigm, dataset, idx):
     In addition metadata, channel names and the sampling rate are provided too."""
     x, labels, metadata = paradigm.get_data(dataset, idx, True)
     ch_names = x.info.ch_names
+    ch_positions = x.info.get_montage().get_positions()["ch_pos"]
     adjacency, _ = find_ch_adjacency(x.info, ch_type="eeg")
     adjacency_mtx = scipy.sparse.csr_matrix.toarray(
         adjacency
@@ -132,7 +141,7 @@ def load_data(paradigm, dataset, idx):
     y = [dataset.event_id[yy] for yy in labels]
     y = np.array(y)
     y -= y.min()
-    return x, y, labels, metadata, ch_names, adjacency_mtx, srate
+    return x, y, labels, metadata, ch_names, adjacency_mtx, ch_positions, srate
 
 
 def download_data(data_folder, dataset):
