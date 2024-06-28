@@ -25,7 +25,9 @@ import torch
 import yaml
 from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
-from torchinfo import summary
+from torch_geometric.data import Data
+from torch_geometric.nn import summary as pyg_summary
+from torchinfo import summary as torchinfo_summary 
 from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
 
 import wandb
@@ -46,24 +48,31 @@ class MOABBBrain(sb.Brain):
 
     def compute_forward(self, batch, stage):
         "Given an input batch it computes the model output."
-        inputs = batch[0].to(self.device)
+        if not self.hparams.return_graph:
+            inputs = batch[0].to(self.device)
+            # Perform data augmentation
+            if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augment"):
+                inputs, _ = self.hparams.augment(
+                    inputs.squeeze(3),
+                    lengths=torch.ones(inputs.shape[0], device=self.device),
+                )
+                inputs = inputs.unsqueeze(3)
 
-        # Perform data augmentation
-        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augment"):
-            inputs, _ = self.hparams.augment(
-                inputs.squeeze(3),
-                lengths=torch.ones(inputs.shape[0], device=self.device),
-            )
-            inputs = inputs.unsqueeze(3)
-
-        # Normalization
-        if hasattr(self.hparams, "normalize"):
-            inputs = self.hparams.normalize(inputs)
+            # Normalization
+            if hasattr(self.hparams, "normalize"):
+                inputs = self.hparams.normalize(inputs)
+        else:
+            inputs = batch.to(self.device)
+            if hasattr(self.hparams, "normalize"):
+                inputs.x = self.hparams.normalize(inputs.x)
         return self.modules.model(inputs)
 
     def compute_objectives(self, predictions, batch, stage):
         "Given the network predictions and targets computes the loss."
-        targets = batch[1].to(self.device)
+        if not self.hparams.return_graph:
+            targets = batch[1].to(self.device)
+        else:
+            targets = batch.y.to(self.device)
 
         # Target augmentation
         N_augments = int(predictions.shape[0] / targets.shape[0])
@@ -80,7 +89,8 @@ class MOABBBrain(sb.Brain):
             # From log to linear predictions
             tmp_preds = torch.exp(predictions)
             self.preds.extend(tmp_preds.detach().cpu().numpy())
-            self.targets.extend(batch[1].detach().cpu().numpy())
+            targets_before_augment = batch.y if self.hparams.return_graph else batch[1]
+            self.targets.extend(targets_before_augment.detach().cpu().numpy())
         else:
             if hasattr(self.hparams, "lr_annealing"):
                 self.hparams.lr_annealing.on_batch_end(self.optimizer)
@@ -89,49 +99,36 @@ class MOABBBrain(sb.Brain):
     def on_fit_start(self):
         """Gets called at the beginning of ``fit()``"""
         # Initialize wandb
-        run_name = f"exp_bs:{self.hparams.batch_size}_lr:{self.hparams.lr}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        run_name = f"{self.hparams.prefix_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         wandb.init(
             project=self.hparams.project,
             name=run_name,
             mode=self.hparams.mode,
             entity=self.hparams.entity,
         )
-        if self.hparams.random_init:
-            # Log configuration settings (hyperparameters) to wandb
-            relevant_hparams = {
-                "learning_rate": self.hparams.lr,
-                "batch_size": self.hparams.batch_size,
-                "max_duration_in_seconds": self.hparams.max_duration_in_seconds,
-                "model_name_or_path": self.hparams.model_name_or_path,
-                "random_init": self.hparams.random_init,
-                "freeze": self.hparams.freeze,
-                "sampling_rate": self.hparams.sampling_rate,
-                "do_stable_layer_norm": self.hparams.do_stable_layer_norm,
-                "feat_extract_norm": self.hparams.feat_extract_norm,
-                "num_feat_extract_layers": self.hparams.num_feat_extract_layers,
-                "conv_dim": self.hparams.conv_dim,
-                "conv_kernel": self.hparams.conv_kernel,
-                "conv_stride": self.hparams.conv_stride,
-                "num_hidden_layers": self.hparams.num_hidden_layers,
-                "hidden_size": self.hparams.hidden_size,
-                "num_attention_heads": self.hparams.num_attention_heads,
-                "intermediate_size": self.hparams.intermediate_size,
-                "num_conv_pos_embeddings": self.hparams.num_conv_pos_embeddings,
-                "num_codevectors_per_group": self.hparams.num_codevectors_per_group,
-            }
-            wandb.config.update(relevant_hparams)
 
         if "skip_init" in hparams and not hparams["skip_init"]:
             self.init_model(self.hparams.model)
         self.init_optimizers()
-        in_shape = (
-            (1,)
-            + tuple(np.floor(self.hparams.input_shape[1:-1]).astype(int))
-            + (1,)
-        )
-        model_summary = summary(
-            self.hparams.model, input_size=in_shape, device=self.device
-        )
+        if self.hparams.return_graph:
+            # Assume we have a graph object initialized here
+            # For demonstration purposes, using a sample graph
+            sample_graph = Data(
+                x=torch.randn((self.hparams.input_shape[2], self.hparams.input_shape[1])),
+                edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
+            )
+            sample_graph = sample_graph.to(self.device)
+            model_summary = pyg_summary(self.hparams.model, sample_graph)
+        else:
+            in_shape = (
+                (1,)
+                + tuple(np.floor(self.hparams.input_shape[1:-1]).astype(int))
+                + (1,)
+            )
+            model_summary = torchinfo_summary(
+                self.hparams.model, input_size=in_shape, device=self.device
+            )
+
         with open(
             os.path.join(self.hparams.exp_dir, "model.txt"), "w"
         ) as text_file:
@@ -159,8 +156,6 @@ class MOABBBrain(sb.Brain):
                     metric_key
                 ](y_true=y_true, y_pred=y_pred)
             if stage == sb.Stage.VALID:
-                # Log validation stats to wandb
-                wandb.log({"epoch": epoch, **self.last_eval_stats})
                 # Learning rate scheduler
                 if hasattr(self.hparams, "lr_annealing"):
                     old_lr, new_lr = self.hparams.lr_annealing(epoch)
@@ -178,6 +173,9 @@ class MOABBBrain(sb.Brain):
                         train_stats={"loss": self.train_loss},
                         valid_stats=self.last_eval_stats,
                     )
+
+                # Log validation stats to wandb
+                wandb.log({**self.last_eval_stats, "lr": old_lr, "train_loss": self.train_loss})
 
                 if epoch == 1:
                     self.best_eval_stats = self.last_eval_stats
@@ -297,10 +295,25 @@ class MOABBBrain(sb.Brain):
 
 def run_experiment(hparams, run_opts, datasets):
     """This function performs a single training (e.g., single cross-validation fold)"""
-    idx_examples = np.arange(datasets["train"].dataset.tensors[0].shape[0])
+    if not hparams['return_graph']:
+        n_train_samples = datasets["train"].dataset.tensors[0].shape[0]
+        n_valid_samples = datasets["valid"].dataset.tensors[0].shape[0]
+        n_test_samples = datasets["test"].dataset.tensors[0].shape[0]
+        train_labels = datasets["train"].dataset.tensors[1]
+        input_shape = datasets["train"].dataset.tensors[0].shape[1:]
+        train_avg_value = datasets["train"].dataset.tensors[0].mean()
+    else:
+        n_train_samples = len(datasets["train"].dataset)
+        n_valid_samples = len(datasets["valid"].dataset)
+        n_test_samples = len(datasets["test"].dataset)
+        train_labels = np.array([data.y for data in datasets["train"].dataset])
+        input_shape = datasets["train"].dataset[0].x.shape
+        train_avg_value = torch.stack([data.x for data in datasets["train"].dataset], dim=0).mean()
+
+    idx_examples = np.arange(n_train_samples)
     n_examples_perclass = [
         idx_examples[
-            np.where(datasets["train"].dataset.tensors[1] == c)[0]
+            np.where(train_labels == c)[0]
         ].shape[0]
         for c in range(hparams["n_classes"])
     ]
@@ -322,18 +335,18 @@ def run_experiment(hparams, run_opts, datasets):
     logger.info("Experiment directory: {0}".format(hparams["exp_dir"]))
     logger.info(
         "Input shape: {0}".format(
-            datasets["train"].dataset.tensors[0].shape[1:]
+            input_shape
         )
     )
     logger.info(
         "Training set avg value: {0}".format(
-            datasets["train"].dataset.tensors[0].mean()
+            train_avg_value
         )
     )
     datasets_summary = "Number of examples: {0} (training), {1} (validation), {2} (test)".format(
-        datasets["train"].dataset.tensors[0].shape[0],
-        datasets["valid"].dataset.tensors[0].shape[0],
-        datasets["test"].dataset.tensors[0].shape[0],
+        n_train_samples,
+        n_valid_samples,
+        n_test_samples,
     )
     logger.info(datasets_summary)
 
@@ -419,7 +432,10 @@ def prepare_dataset_iterators(hparams):
         tmax=hparams["tmax"],
         save_prepared_dataset=hparams["save_prepared_dataset"],
         n_steps_channel_selection=hparams["n_steps_channel_selection"],
+        return_graph=hparams["return_graph"],
+        keep_all_channels=hparams["keep_all_channels"],
     )
+
     return tail_path, datasets
 
 
@@ -432,12 +448,18 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     tail_path, datasets = prepare_dataset_iterators(hparams)
     # override C and T, to be sure that network input shape matches the dataset (e.g., after time cropping or channel sampling)
-    overrides.update(
-        T=datasets["train"].dataset.tensors[0].shape[1],
-        C=datasets["train"].dataset.tensors[0].shape[-2],
-        n_train_examples=datasets["train"].dataset.tensors[0].shape[0],
-    )
-
+    if not hparams['return_graph']:
+        overrides.update(
+            T=datasets["train"].dataset.tensors[0].shape[1],
+            C=datasets["train"].dataset.tensors[0].shape[-2],
+            n_train_examples=datasets["train"].dataset.tensors[0].shape[0],
+        )
+    else:
+        overrides.update(
+            T=datasets["train"].dataset[0].x.shape[-1],
+            C=datasets["train"].dataset[0].x.shape[0],
+            n_train_examples=len(datasets["train"].dataset),
+        )
     # loading hparams for the each training and evaluation processes
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
