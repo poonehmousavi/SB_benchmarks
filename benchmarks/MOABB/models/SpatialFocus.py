@@ -53,8 +53,11 @@ def inject_spatial_focus(
     seq, module_name = after.split(".")
 
     module: nn.Sequential = getattr(model, seq)
-    for idx, (name, _) in enumerate(module.named_modules()):
+    new_module = nn.Sequential()
+    for idx, (name, mod) in enumerate(module.named_modules()):
+        new_module.append(mod)
         if name == module_name:
-            module.insert(idx + 1, spatial_focus)
+            new_module.append(mod)
 
+    setattr(model, seq, new_module)
     return model
