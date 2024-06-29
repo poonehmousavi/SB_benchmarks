@@ -8,7 +8,7 @@ class SpatialFocus(nn.Module):
         n_focal_points,
         focus_dims=3,
         similarity_func="cosine",
-        similarity_transform=nn.Softmax(-1),
+        similarity_transform=nn.Softmax(-2),
     ):
         super().__init__()
         self.n_focal_points = n_focal_points
