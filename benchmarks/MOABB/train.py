@@ -54,7 +54,7 @@ class MOABBBrain(sb.Brain):
         # Normalization
         if hasattr(self.hparams, "normalize"):
             inputs = self.hparams.normalize(inputs)
-        return self.modules.model(inputs)
+        return self.modules.model(inputs, self.hparams.ch_positions)
 
     def compute_objectives(self, predictions, batch, stage):
         "Given the network predictions and targets computes the loss."
@@ -285,6 +285,7 @@ def run_experiment(hparams, run_opts, datasets):
         datasets["test"].dataset.tensors[0].shape[0],
     )
     logger.info(datasets_summary)
+    hparams["ch_positions"] = datasets["ch_positions"]
 
     brain = MOABBBrain(
         modules={"model": hparams["model"]},

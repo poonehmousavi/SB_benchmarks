@@ -45,19 +45,3 @@ class SpatialFocus(nn.Module):
         x = (x * weights).sum(dim=-2)
 
         return x
-
-
-def inject_spatial_focus(
-    model: nn.Module, spatial_focus: SpatialFocus, after: str
-):
-    seq, module_name = after.split(".")
-
-    module: nn.Sequential = getattr(model, seq)
-    new_module = nn.Sequential()
-    for idx, (name, mod) in enumerate(module.named_modules()):
-        new_module.append(mod)
-        if name == module_name:
-            new_module.append(spatial_focus)
-
-    setattr(model, seq, new_module)
-    return model

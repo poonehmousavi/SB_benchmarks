@@ -155,7 +155,7 @@ dense_max_norm: 0.25 # kernel max-norm constaint of the dense layer
 dropout: 0.008464 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
 activation_type: "elu"
 
-eeg_net: !new:models.EEGNet.EEGNet
+model: !new:models.EEGNet_spatial_focus.EEGNet
   input_shape: !ref <input_shape>
   cnn_temporal_kernels: !ref <cnn_temporal_kernels>
   cnn_temporal_kernelsize: [!ref <cnn_temporal_kernelsize>, 1]
@@ -171,10 +171,3 @@ eeg_net: !new:models.EEGNet.EEGNet
   dense_max_norm: !ref <dense_max_norm>
   dropout: !ref <dropout>
   dense_n_neurons: !ref <n_classes>
-spatial_focus: !new:models.SpatialFocus.SpatialFocus
-  n_focal_points: !ref <number_of_foci>
-  focus_dims: 3
-model: !apply:models.SpatialFocus.inject_spatial_focus
-  model: !ref <eeg_net>
-  spatial_focus: !ref <spatial_focus>
-  after: conv_module.bnorm_0
