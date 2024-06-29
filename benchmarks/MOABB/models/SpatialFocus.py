@@ -42,6 +42,6 @@ class SpatialFocus(nn.Module):
         weights = weights.unsqueeze(-1)  # Feature dimension
 
         x = x.unsqueeze(-2)  # Focus dimension
-        x = (x * weights).sum(dim=-2)
+        x = (x * weights).sum(dim=-3)
 
         return x
