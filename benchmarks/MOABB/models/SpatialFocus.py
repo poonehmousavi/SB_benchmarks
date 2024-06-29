@@ -57,7 +57,7 @@ def inject_spatial_focus(
     for idx, (name, mod) in enumerate(module.named_modules()):
         new_module.append(mod)
         if name == module_name:
-            new_module.append(mod)
+            new_module.append(spatial_focus)
 
     setattr(model, seq, new_module)
     return model
