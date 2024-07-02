@@ -310,26 +310,35 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
                 interval_out=interval,
             )
 
+        adjacency_mtx = target_data_dict["adjacency_mtx"]
+        ch_positions = target_data_dict["ch_positions"]
+        ch_names = target_data_dict["channels"]
+
         # channel sampling
         if n_steps_channel_selection is not None:
             x_train, ch_idx, ch_names = sample_channels(
                 x_train,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
             x_valid, *_ = sample_channels(
                 x_valid,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
             x_test, *_ = sample_channels(
                 x_test,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
+            adjacency_mtx = target_data_dict["adjacency_mtx"][ch_idx, :][
+                :, ch_idx
+            ]
+
+        ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
 
         # swap axes: from (N_examples, C, T) to (N_examples, T, C)
         x_train = np.swapaxes(x_train, -1, -2)
@@ -341,18 +350,13 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
             batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
         )
 
-        ch_positions = target_data_dict["ch_positions"]
-        ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
-
-        adj_mtx = target_data_dict["adjacency_mtx"][ch_idx, :][:, ch_idx]
-
         datasets: _SplitDataloaders = dict(
             train=train_loader,
             valid=valid_loader,
             test=test_loader,
             ch_names=ch_names,
             channel_positions=ch_positions,
-            adjacency_mtx=adj_mtx,
+            adjacency_mtx=adjacency_mtx,
         )
 
         tail_path = self.get_tail_path(subject, target_data_dict.get("session"))
