@@ -334,9 +334,7 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
                 ch_names,
                 n_steps=n_steps_channel_selection,
             )
-            adjacency_mtx = target_data_dict["adjacency_mtx"][ch_idx, :][
-                :, ch_idx
-            ]
+            adjacency_mtx = adjacency_mtx[ch_idx, :][:, ch_idx]
 
         ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
 
@@ -355,7 +353,7 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
             valid=valid_loader,
             test=test_loader,
             ch_names=ch_names,
-            channel_positions=ch_positions,
+            ch_positions=ch_positions,
             adjacency_mtx=adjacency_mtx,
         )
 
