@@ -8,4 +8,4 @@ source $SLURM_TMPDIR/venv/bin/activate
 pip install --no-index $SCRATCH/wheels/*
 
 cd $HOME/speechbrain-benchmarks-private/benchmarks/MOABB
-pip install --no-index -r extra_requirements.txt
+pip install --no-index -r extra-requirements.txt
