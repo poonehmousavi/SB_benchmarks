@@ -228,7 +228,7 @@ class EEGNet(torch.nn.Module):
         x = self.temporal_frontend(
             torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
         )
-        x = self.spatial_focus(x)
+        # x = self.spatial_focus(x)
         x = self.conv_module(x)
         size = x.size()[1:]  # all dimensions except the batch dimension
         num_features = 1
