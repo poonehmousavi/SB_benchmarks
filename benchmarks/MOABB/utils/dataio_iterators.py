@@ -15,13 +15,15 @@ Drew Wagner, 2024
 import abc
 import os
 from collections import namedtuple
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, List, Optional, Protocol, Tuple, TypedDict
 
 import numpy as np
 import pandas as pd
 import torch
 from moabb.datasets.base import BaseDataset as MOABBDataset
 from torch.utils.data import DataLoader, TensorDataset
+import torch_geometric.data
+import torch_geometric.loader
 from utils.prepare import prepare_data
 
 
@@ -135,6 +137,12 @@ def sample_channels(x, adjacency_mtx, ch_names, n_steps, seed_nodes=["Cz"]):
     return x, idx_sel_channels, ch_names
 
 
+def adjacency_mtx_to_edge_list(adjacency_mtx):
+    """Convert adjacency matrix to edge list format"""
+    edge_list = np.vstack(np.nonzero(adjacency_mtx))
+    return torch.tensor(edge_list, dtype=torch.long).contiguous()
+
+
 class _SplitDataloaders(TypedDict):
     train: DataLoader
     valid: DataLoader
@@ -158,7 +166,31 @@ class _DataDict(TypedDict):
     subject: str
 
 
-class BaseDataIOIterator(abc.ABC):
+class DataLoaderFactory(Protocol):
+    def prepare(
+        self,
+        *,
+        data_folder: str,
+        cached_data_folder: str,
+        dataset: MOABBDataset,
+        batch_size: int,
+        valid_ratio: float,
+        original_sample_rate: int,
+        target_subject_idx: int,
+        target_session_idx: Optional[int] = None,
+        sample_rate: Optional[int] = None,
+        fmin: Optional[float] = None,
+        fmax: Optional[float] = None,
+        tmin: Optional[float] = None,
+        tmax: Optional[float] = None,
+        n_steps_channel_selection: Optional[int] = None,
+        events_to_load: Optional[List[str]] = None,
+        save_prepared_dataset: bool = True,
+    ) -> Tuple[str, _SplitDataloaders]:
+        ...
+
+
+class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
     def __init__(self, tag, seed):
         self.iterator_tag = tag
         np.random.seed(seed)
@@ -239,8 +271,6 @@ class BaseDataIOIterator(abc.ABC):
         interval = [tmin, tmax]
         subject = dataset.subject_list[target_subject_idx]
 
-        self.validate_dataset_or_raise(dataset)
-
         (
             target_data_dict,
             (x_train, y_train, x_valid, y_valid, x_test, y_test),
@@ -280,26 +310,34 @@ class BaseDataIOIterator(abc.ABC):
                 interval_out=interval,
             )
 
+        adjacency_mtx = target_data_dict["adjacency_mtx"]
+        ch_positions = target_data_dict["ch_positions"]
+        ch_names = target_data_dict["channels"]
+
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train, ch_idx, ch_names = sample_channels(
+            x_train, ch_idx, ch_names_sel = sample_channels(
                 x_train,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
             x_valid, *_ = sample_channels(
                 x_valid,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
             x_test, *_ = sample_channels(
                 x_test,
-                target_data_dict["adjacency_mtx"],
-                target_data_dict["channels"],
+                adjacency_mtx,
+                ch_names,
                 n_steps=n_steps_channel_selection,
             )
+            adjacency_mtx = adjacency_mtx[ch_idx, :][:, ch_idx]
+            ch_names = ch_names_sel
+
+        ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
 
         # swap axes: from (N_examples, C, T) to (N_examples, T, C)
         x_train = np.swapaxes(x_train, -1, -2)
@@ -311,26 +349,17 @@ class BaseDataIOIterator(abc.ABC):
             batch_size, (x_train, y_train), (x_valid, y_valid), (x_test, y_test)
         )
 
-        ch_positions = target_data_dict["ch_positions"]
-        ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
-
-        adj_mtx = target_data_dict["adjacency_mtx"][ch_idx, :][:, ch_idx]
-
         datasets: _SplitDataloaders = dict(
             train=train_loader,
             valid=valid_loader,
             test=test_loader,
             ch_names=ch_names,
-            channel_positions=ch_positions,
-            adjacency_mtx=adj_mtx,
+            ch_positions=ch_positions,
+            adjacency_mtx=adjacency_mtx,
         )
 
         tail_path = self.get_tail_path(subject, target_data_dict.get("session"))
         return tail_path, datasets
-
-    def validate_dataset_or_raise(self, dataset: MOABBDataset) -> None:
-        """Check that the dataset is compatible, or raise an error."""
-        pass
 
     @abc.abstractmethod
     def get_data(
@@ -372,6 +401,83 @@ class BaseDataIOIterator(abc.ABC):
         if session is not None:
             tail_path = os.path.join(tail_path, session)
         return tail_path
+
+
+class AsGraph(DataLoaderFactory):
+    def __init__(self, inner: DataLoaderFactory):
+        self.inner = inner
+
+    def prepare(
+        self,
+        *,
+        data_folder: str,
+        cached_data_folder: str,
+        dataset: MOABBDataset,
+        batch_size: int,
+        valid_ratio: float,
+        original_sample_rate: int,
+        target_subject_idx: int,
+        target_session_idx: Optional[int] = None,
+        sample_rate: Optional[int] = None,
+        fmin: Optional[float] = None,
+        fmax: Optional[float] = None,
+        tmin: Optional[float] = None,
+        tmax: Optional[float] = None,
+        n_steps_channel_selection: Optional[int] = None,
+        events_to_load: Optional[List[str]] = None,
+        save_prepared_dataset: bool = True,
+    ) -> Tuple[str, _SplitDataloaders]:
+        tail_path, datasets = self.inner.prepare(
+            data_folder=data_folder,
+            cached_data_folder=cached_data_folder,
+            dataset=dataset,
+            batch_size=batch_size,
+            valid_ratio=valid_ratio,
+            original_sample_rate=original_sample_rate,
+            target_subject_idx=target_subject_idx,
+            target_session_idx=target_session_idx,
+            sample_rate=sample_rate,
+            fmin=fmin,
+            fmax=fmax,
+            tmin=tmin,
+            tmax=tmax,
+            n_steps_channel_selection=n_steps_channel_selection,
+            events_to_load=events_to_load,
+            save_prepared_dataset=save_prepared_dataset,
+        )
+
+        edge_list = adjacency_mtx_to_edge_list(datasets["adjacency_mtx"])
+
+        for key in ("train", "valid", "test"):
+            datasets[key] = self.make_graph_dataloader(
+                datasets[key],
+                edge_list=edge_list,
+                ch_positions=torch.from_numpy(datasets["ch_positions"]),
+                shuffle=(key == "train"),
+            )
+
+        return tail_path, datasets
+
+    def make_graph_dataloader(
+        self,
+        dataloader: DataLoader,
+        edge_list: torch.Tensor,
+        ch_positions: torch.Tensor,
+        shuffle: bool = False,
+    ) -> torch_geometric.loader.DataLoader:
+        dataset = [
+            # Transpose T, C -> C, T
+            torch_geometric.data.Data(
+                x=x.transpose(0, 1), y=y, edge_index=edge_list, pos=ch_positions
+            )
+            for x, y in dataloader.dataset
+        ]
+        return torch_geometric.loader.DataLoader(
+            dataset,
+            batch_size=dataloader.batch_size,
+            pin_memory=dataloader.pin_memory,
+            shuffle=shuffle,
+        )
 
 
 class LeaveOneSessionOut(BaseDataIOIterator):
@@ -505,6 +611,7 @@ class LeaveOneSubjectOut(BaseDataIOIterator):
         valid_ratio=None,
         **prepare_data_kwargs,
     ):
+        self._validate_dataset_or_raise(dataset)
         # preparing or loading test set
         target_data_dict = prepare_data(
             dataset=dataset,
@@ -584,7 +691,7 @@ class LeaveOneSubjectOut(BaseDataIOIterator):
             (x_train, y_train, x_valid, y_valid, x_test, y_test,),
         )
 
-    def validate_dataset_or_raise(self, dataset: MOABBDataset):
+    def _validate_dataset_or_raise(self, dataset: MOABBDataset):
         if len(dataset.subject_list) < 2:
             raise (
                 ValueError(
