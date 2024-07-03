@@ -12,7 +12,7 @@ pip install --no-index $SCRATCH/wheels/edfio-0.4.3-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/mne-1.6.1-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/mne_bids-0.13-py2.py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/pymatreader-0.0.32-py3-none-any.whl
-pip install --no-index $SCRATCH/wheels/pyriemann-0.6-py2.py3-none-any.whl
+pip install --no-index $SCRATCH/wheels/pyriemann-0.5-py2.py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/speechbrain-1.0.0-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/memory_profiler-0.61.0-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/moabb-1.0.0-py3-none-any.whl
