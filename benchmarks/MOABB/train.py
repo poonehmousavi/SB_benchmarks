@@ -83,6 +83,7 @@ class MOABBBrain(sb.Brain):
 
     def on_fit_start(self,):
         """Gets called at the beginning of ``fit()``"""
+        self.hparams.ch_positions = self.hparams.ch_positions.to(self.device)
         self.init_model(self.hparams.model)
         self.init_optimizers()
         in_shape = (
@@ -285,7 +286,7 @@ def run_experiment(hparams, run_opts, datasets):
         datasets["test"].dataset.tensors[0].shape[0],
     )
     logger.info(datasets_summary)
-    hparams["ch_positions"] = datasets["ch_positions"]
+    hparams["ch_positions"] = torch.from_numpy(datasets["ch_positions"])
 
     brain = MOABBBrain(
         modules={"model": hparams["model"]},
