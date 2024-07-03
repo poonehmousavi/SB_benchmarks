@@ -201,10 +201,7 @@ class EEGNet(torch.nn.Module):
         self.conv_module.add_module("dropout_3", torch.nn.Dropout(p=dropout))
 
         # Shape of intermediate feature maps
-        out = self.conv_module(
-            torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
-        )
-        dense_input_size = self._num_flat_features(out)
+        dense_input_size = self._num_flat_features(input_shape)
         # DENSE MODULE
         self.dense_module = torch.nn.Sequential()
         self.dense_module.add_module(
@@ -220,7 +217,7 @@ class EEGNet(torch.nn.Module):
         )
         self.dense_module.add_module("act_out", torch.nn.LogSoftmax(dim=1))
 
-    def _num_flat_features(self, x):
+    def _num_flat_features(self, input_shape):
         """Returns the number of flattened features from a tensor.
 
         Arguments
@@ -228,7 +225,11 @@ class EEGNet(torch.nn.Module):
         x : torch.Tensor
             Input feature map.
         """
-
+        x = self.temporal_frontend(
+            torch.ones((1,) + tuple(input_shape[1:-1]) + (1,))
+        )
+        x = self.spatial_focus(x)
+        x = self.conv_module(x)
         size = x.size()[1:]  # all dimensions except the batch dimension
         num_features = 1
         for s in size:
