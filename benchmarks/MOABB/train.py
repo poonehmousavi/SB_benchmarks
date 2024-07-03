@@ -457,7 +457,7 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
         )
     else:
         overrides.update(
-            T=datasets["train"].dataset[0].x.shape[-1],
+            T=datasets["train"].dataset[0].x.shape[1],
             C=datasets["train"].dataset[0].x.shape[0],
             n_train_examples=len(datasets["train"].dataset),
         )
