@@ -3,4 +3,5 @@ moabb
 orion
 orion[profet]
 scikit-learn
+torch_geometric
 torchinfo
