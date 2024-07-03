@@ -124,6 +124,7 @@ class MOABBBrain(sb.Brain):
                     (self.hparams.input_shape[2], self.hparams.input_shape[1])
                 ),
                 edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
+                pos=torch.rand((self.hparams.input_shape[2], 3)),
             )
             sample_graph = sample_graph.to(self.device)
             model_summary = pyg_summary(self.hparams.model, sample_graph)
