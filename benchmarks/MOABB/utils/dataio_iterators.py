@@ -465,7 +465,10 @@ class AsGraph(DataLoaderFactory):
         shuffle: bool = False,
     ) -> torch_geometric.loader.DataLoader:
         dataset = [
-            torch_geometric.data.Data(x=x, y=y, edge_index=edge_list)
+            # Transpose T, C -> C, T
+            torch_geometric.data.Data(
+                x=x.transpose(0, 1), y=y, edge_index=edge_list, pos=ch_positions
+            )
             for x, y in dataloader.dataset
         ]
         return torch_geometric.loader.DataLoader(
