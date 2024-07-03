@@ -27,8 +27,12 @@ from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
 from torch_geometric.data import Data
 from torch_geometric.nn import summary as pyg_summary
-from torchinfo import summary as torchinfo_summary 
-from utils.dataio_iterators import LeaveOneSessionOut, LeaveOneSubjectOut
+from torchinfo import summary as torchinfo_summary
+from utils.dataio_iterators import (
+    AsGraph,
+    LeaveOneSessionOut,
+    LeaveOneSubjectOut,
+)
 
 import wandb
 
@@ -89,7 +93,9 @@ class MOABBBrain(sb.Brain):
             # From log to linear predictions
             tmp_preds = torch.exp(predictions)
             self.preds.extend(tmp_preds.detach().cpu().numpy())
-            targets_before_augment = batch.y if self.hparams.return_graph else batch[1]
+            targets_before_augment = (
+                batch.y if self.hparams.return_graph else batch[1]
+            )
             self.targets.extend(targets_before_augment.detach().cpu().numpy())
         else:
             if hasattr(self.hparams, "lr_annealing"):
@@ -114,8 +120,11 @@ class MOABBBrain(sb.Brain):
             # Assume we have a graph object initialized here
             # For demonstration purposes, using a sample graph
             sample_graph = Data(
-                x=torch.randn((self.hparams.input_shape[2], self.hparams.input_shape[1])),
-                edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long)
+                x=torch.randn(
+                    (self.hparams.input_shape[2], self.hparams.input_shape[1])
+                ),
+                edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
+                pos=torch.rand((self.hparams.input_shape[2], 3)),
             )
             sample_graph = sample_graph.to(self.device)
             model_summary = pyg_summary(self.hparams.model, sample_graph)
@@ -175,7 +184,13 @@ class MOABBBrain(sb.Brain):
                     )
 
                 # Log validation stats to wandb
-                wandb.log({**self.last_eval_stats, "lr": old_lr, "train_loss": self.train_loss})
+                wandb.log(
+                    {
+                        **self.last_eval_stats,
+                        "lr": old_lr,
+                        "train_loss": self.train_loss,
+                    }
+                )
 
                 if epoch == 1:
                     self.best_eval_stats = self.last_eval_stats
@@ -263,18 +278,14 @@ class MOABBBrain(sb.Brain):
             max_key=max_key, min_key=min_key
         )
         ckpt = sb.utils.checkpoints.average_checkpoints(
-            ckpts,
-            recoverable_name="model",
+            ckpts, recoverable_name="model",
         )
 
         self.hparams.model.load_state_dict(ckpt, strict=True)
         self.hparams.model.eval()
 
     def check_if_best(
-        self,
-        last_eval_stats,
-        best_eval_stats,
-        keys,
+        self, last_eval_stats, best_eval_stats, keys,
     ):
         """Checks if the current model is the best according at least to
         one of the monitored metrics."""
@@ -295,7 +306,7 @@ class MOABBBrain(sb.Brain):
 
 def run_experiment(hparams, run_opts, datasets):
     """This function performs a single training (e.g., single cross-validation fold)"""
-    if not hparams['return_graph']:
+    if not hparams["return_graph"]:
         n_train_samples = datasets["train"].dataset.tensors[0].shape[0]
         n_valid_samples = datasets["valid"].dataset.tensors[0].shape[0]
         n_test_samples = datasets["test"].dataset.tensors[0].shape[0]
@@ -308,13 +319,13 @@ def run_experiment(hparams, run_opts, datasets):
         n_test_samples = len(datasets["test"].dataset)
         train_labels = np.array([data.y for data in datasets["train"].dataset])
         input_shape = datasets["train"].dataset[0].x.shape
-        train_avg_value = torch.stack([data.x for data in datasets["train"].dataset], dim=0).mean()
+        train_avg_value = torch.stack(
+            [data.x for data in datasets["train"].dataset], dim=0
+        ).mean()
 
     idx_examples = np.arange(n_train_samples)
     n_examples_perclass = [
-        idx_examples[
-            np.where(train_labels == c)[0]
-        ].shape[0]
+        idx_examples[np.where(train_labels == c)[0]].shape[0]
         for c in range(hparams["n_classes"])
     ]
     n_examples_perclass = np.array(n_examples_perclass)
@@ -333,20 +344,10 @@ def run_experiment(hparams, run_opts, datasets):
     )
     logger = logging.getLogger(__name__)
     logger.info("Experiment directory: {0}".format(hparams["exp_dir"]))
-    logger.info(
-        "Input shape: {0}".format(
-            input_shape
-        )
-    )
-    logger.info(
-        "Training set avg value: {0}".format(
-            train_avg_value
-        )
-    )
+    logger.info("Input shape: {0}".format(input_shape))
+    logger.info("Training set avg value: {0}".format(train_avg_value))
     datasets_summary = "Number of examples: {0} (training), {1} (validation), {2} (test)".format(
-        n_train_samples,
-        n_valid_samples,
-        n_test_samples,
+        n_train_samples, n_valid_samples, n_test_samples,
     )
     logger.info(datasets_summary)
 
@@ -415,6 +416,9 @@ def prepare_dataset_iterators(hparams):
             "Unknown data_iterator_name: %s" % hparams["data_iterator_name"]
         )
 
+    if hparams["return_graph"]:
+        data_iterator = AsGraph(data_iterator)
+
     tail_path, datasets = data_iterator.prepare(
         data_folder=hparams["data_folder"],
         dataset=hparams["dataset"],
@@ -432,8 +436,6 @@ def prepare_dataset_iterators(hparams):
         tmax=hparams["tmax"],
         save_prepared_dataset=hparams["save_prepared_dataset"],
         n_steps_channel_selection=hparams["n_steps_channel_selection"],
-        return_graph=hparams["return_graph"],
-        keep_all_channels=hparams["keep_all_channels"],
     )
 
     return tail_path, datasets
@@ -448,7 +450,7 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
 
     tail_path, datasets = prepare_dataset_iterators(hparams)
     # override C and T, to be sure that network input shape matches the dataset (e.g., after time cropping or channel sampling)
-    if not hparams['return_graph']:
+    if not hparams["return_graph"]:
         overrides.update(
             T=datasets["train"].dataset.tensors[0].shape[1],
             C=datasets["train"].dataset.tensors[0].shape[-2],
@@ -456,7 +458,7 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
         )
     else:
         overrides.update(
-            T=datasets["train"].dataset[0].x.shape[-1],
+            T=datasets["train"].dataset[0].x.shape[1],
             C=datasets["train"].dataset[0].x.shape[0],
             n_train_examples=len(datasets["train"].dataset),
         )
@@ -464,7 +466,7 @@ def load_hparams_and_dataset_iterators(hparams_file, run_opts, overrides):
     with open(hparams_file) as fin:
         hparams = load_hyperpyyaml(fin, overrides)
 
-    if hparams['sweep_run']:
+    if hparams["sweep_run"]:
         # Extract relevant hyperparameters for path creation
         hidden_size = overrides.get("hidden_size", str(uuid.uuid4()))
         num_attention_heads = overrides.get(

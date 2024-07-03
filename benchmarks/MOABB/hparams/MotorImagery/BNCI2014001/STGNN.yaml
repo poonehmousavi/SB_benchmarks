@@ -75,7 +75,6 @@ batch_size_exponent: 7 # @orion_step1: --batch_size_exponent~"uniform(4, 6,discr
 batch_size: !ref 2 ** <batch_size_exponent>
 valid_ratio: 0.2
 return_graph: True
-keep_all_channels: False
 
 # # DATA AUGMENTATION
 # # cutcat (disabled when min_num_segments=max_num_segments=1)
