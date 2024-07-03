@@ -83,7 +83,9 @@ class MOABBBrain(sb.Brain):
 
     def on_fit_start(self,):
         """Gets called at the beginning of ``fit()``"""
-        self.hparams.ch_positions = self.hparams.ch_positions.to(self.device)
+        self.hparams.ch_positions = self.hparams.ch_positions.float().to(
+            self.device
+        )
         self.init_model(self.hparams.model)
         self.init_optimizers()
         in_shape = (
