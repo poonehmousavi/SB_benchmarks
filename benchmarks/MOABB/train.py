@@ -289,6 +289,10 @@ def run_experiment(hparams, run_opts, datasets):
     )
     logger.info(datasets_summary)
     hparams["ch_positions"] = torch.from_numpy(datasets["ch_positions"])
+    if (
+        "normalize" in hparams
+    ):  # TODO: Use a different normalizer for data vs. positions
+        hparams["ch_positions"] = hparams["normalize"](hparams["ch_positions"])
 
     brain = MOABBBrain(
         modules={"model": hparams["model"]},
