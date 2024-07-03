@@ -316,7 +316,7 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
 
         # channel sampling
         if n_steps_channel_selection is not None:
-            x_train, ch_idx, ch_names = sample_channels(
+            x_train, ch_idx, ch_names_sel = sample_channels(
                 x_train,
                 adjacency_mtx,
                 ch_names,
@@ -335,6 +335,7 @@ class BaseDataIOIterator(DataLoaderFactory, abc.ABC):
                 n_steps=n_steps_channel_selection,
             )
             adjacency_mtx = adjacency_mtx[ch_idx, :][:, ch_idx]
+            ch_names = ch_names_sel
 
         ch_positions = np.row_stack([ch_positions[ch] for ch in ch_names])
 
