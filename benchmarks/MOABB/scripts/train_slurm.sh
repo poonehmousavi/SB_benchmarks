@@ -2,7 +2,7 @@ module load StdEnv/2020
 module load python/3.10.2
 module load scipy-stack
 
-virtualenv $SLURM_TMPDIR/venv
+virtualenv --no-download $SLURM_TMPDIR/venv
 source $SLURM_TMPDIR/venv/bin/activate
 
 pip install --no-index $SCRATCH/wheels/*
