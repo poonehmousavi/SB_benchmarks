@@ -5,7 +5,9 @@ module load scipy-stack
 virtualenv --no-download $SLURM_TMPDIR/venv
 source $SLURM_TMPDIR/venv/bin/activate
 
+# NOTE: The order of installs is important!
 pip install --no-index scikit-learn orion torch_geometric torchinfo
+pip install --no-index $SCRATCH/wheels/h5py-3.11.0.tar.gz
 pip install --no-index $SCRATCH/wheels/EDFlib_Python-1.0.8-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/edfio-0.4.3-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/mne-1.7.1-py3-none-any.whl
@@ -13,7 +15,6 @@ pip install --no-index $SCRATCH/wheels/mne_bids-0.15.0-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/pymatreader-0.0.32-py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/pyriemann-0.6-py2.py3-none-any.whl
 pip install --no-index $SCRATCH/wheels/speechbrain-1.0.0-py3-none-any.whl
-pip install --no-index $SCRATCH/wheels/h5py-3.11.0.tar.gz
 pip install --no-index $SCRATCH/wheels/moabb-1.1.0-py3-none-any.whl
 
 
