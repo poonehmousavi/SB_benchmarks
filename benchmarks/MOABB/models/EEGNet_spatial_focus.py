@@ -236,7 +236,7 @@ class EEGNet(torch.nn.Module):
             num_features *= s
         return num_features
 
-    def forward(self, x, positions):
+    def forward(self, x, positions=None):
         """Returns the output of the model.
 
         Arguments
@@ -244,6 +244,8 @@ class EEGNet(torch.nn.Module):
         x : torch.Tensor (batch, time, EEG channel, channel)
             Input to convolve. 4d tensors are expected.
         """
+        if positions is None:
+            positions = torch.zeros((x.shape[-2], 3), device=x.device)
         x = self.temporal_frontend(x)
         x = self.spatial_focus(x, positions)
         x = self.conv_module(x)
