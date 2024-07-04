@@ -122,12 +122,13 @@ class MOABBBrain(sb.Brain):
             sample_graph = Data(
                 x=torch.randn(
                     (self.hparams.input_shape[2], self.hparams.input_shape[1])
-                ),
+                ).unsqueeze(-1),
                 edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
                 pos=torch.rand((self.hparams.input_shape[2], 3)),
             )
             sample_graph = sample_graph.to(self.device)
             model_summary = pyg_summary(self.hparams.model, sample_graph)
+            print(model_summary)
         else:
             in_shape = (
                 (1,)
@@ -137,9 +138,8 @@ class MOABBBrain(sb.Brain):
             model_summary = torchinfo_summary(
                 self.hparams.model, input_size=in_shape, device=self.device
             )
-
         with open(
-            os.path.join(self.hparams.exp_dir, "model.txt"), "w"
+            os.path.join(self.hparams.exp_dir, "model.txt"), "w", encoding="utf-8"
         ) as text_file:
             text_file.write(str(model_summary))
 
