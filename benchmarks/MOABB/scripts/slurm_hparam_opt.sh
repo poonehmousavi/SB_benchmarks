@@ -1,5 +1,6 @@
 #!/bin/sh
 source $HOME/speechbrain-benchmarks-private/benchmarks/MOABB/scripts/slurm_install_env.sh
+source $SLURM_TMPDIR/venv/bin/activate
 $HOME/speechbrain-benchmarks-private/benchmarks/MOABB/scripts/slurm_cp_dataset.sh $dataset_tag
 
 cd $HOME/speechbrain-benchmarks-private/benchmarks/MOABB
