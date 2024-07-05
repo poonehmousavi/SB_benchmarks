@@ -609,14 +609,28 @@ class LeaveOneSubjectOut(BaseDataIOIterator):
         target_subject_idx=None,
         target_session_idx=None,  # noqa
         valid_ratio=None,
-        **prepare_data_kwargs,
+        data_folder: Optional[str],
+        cached_data_folder: Optional[str],
+        original_sample_rate: int,
+        sample_rate: Optional[int],
+        fmin: Optional[float],
+        fmax: Optional[float],
+        events_to_load: Optional[List[str]],
+        save_prepared_dataset: bool,
     ):
         self._validate_dataset_or_raise(dataset)
         # preparing or loading test set
         target_data_dict = prepare_data(
             dataset=dataset,
             idx_subject_to_prepare=target_subject_idx,
-            **prepare_data_kwargs,
+            data_folder=data_folder,
+            cached_data_folder=cached_data_folder,
+            srate_in=original_sample_rate,
+            srate_out=sample_rate,
+            fmin=fmin,
+            fmax=fmax,
+            save_prepared_dataset=save_prepared_dataset,
+            events_to_load=events_to_load,
         )
 
         x_test = target_data_dict["x"]
@@ -648,7 +662,14 @@ class LeaveOneSubjectOut(BaseDataIOIterator):
             data_dict = prepare_data(
                 dataset=dataset,
                 idx_subject_to_prepare=subject_idx,
-                **prepare_data_kwargs,
+                data_folder=data_folder,
+                cached_data_folder=cached_data_folder,
+                srate_in=original_sample_rate,
+                srate_out=sample_rate,
+                fmin=fmin,
+                fmax=fmax,
+                save_prepared_dataset=save_prepared_dataset,
+                events_to_load=events_to_load,
             )
 
             tmp_x_train = data_dict["x"]
