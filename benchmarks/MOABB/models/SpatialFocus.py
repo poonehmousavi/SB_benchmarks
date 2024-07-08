@@ -7,12 +7,14 @@ class SpatialFocus(nn.Module):
         self,
         n_focal_points,
         focus_dims=3,
+        knn=None,
         similarity_func="cosine",
-        similarity_transform=nn.Softmax(-2),
+        similarity_transform=nn.Softmax(0),
     ):
         super().__init__()
         self.n_focal_points = n_focal_points
         self.focus_dims = focus_dims
+        self.knn = knn
         self.similarity_func = similarity_func
         self.similarity_transform = similarity_transform
 
@@ -36,12 +38,5 @@ class SpatialFocus(nn.Module):
         else:
             weights = similarity
 
-        weights = weights.unsqueeze(0)  # Batch dimension
-        if x.dim() == 4:
-            weights = weights.unsqueeze(1)  # Time dimension
-        weights = weights.unsqueeze(-1)  # Feature dimension
-
-        x = x.unsqueeze(-2)  # Focus dimension
-        x = (x * weights).sum(dim=-3)
-
+        x = torch.einsum("...cf, cd -> ...df", x, weights)
         return x
