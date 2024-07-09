@@ -1,5 +1,5 @@
 import torch
-from torch import nn
+import torch.nn as nn
 
 
 class SpatialFocus(nn.Module):
@@ -24,9 +24,8 @@ class SpatialFocus(nn.Module):
         focal_points = self.focal_points.weight
 
         if self.similarity_func == "cosine":
-            similarity = (positions @ focal_points.T) / (
-                positions.norm(dim=-1).unsqueeze(1)
-                @ focal_points.norm(dim=-1).unsqueeze(0)
+            similarity = nn.functional.cosine_similarity(
+                positions.unsqueeze(1), focal_points.unsqueeze(0), dim=-1
             )
         else:
             similarity = self.similarity_func(positions, focal_points)
