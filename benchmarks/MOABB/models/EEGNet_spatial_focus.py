@@ -70,6 +70,7 @@ class EEGNet(torch.nn.Module):
         dense_max_norm=0.25,
         dense_n_neurons=4,
         activation_type="elu",
+        spatial_focus_tau=1.0,
     ):
         super().__init__()
         if input_shape is None:
@@ -111,7 +112,16 @@ class EEGNet(torch.nn.Module):
                 input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
             ),
         )
-        self.spatial_focus = SpatialFocus(n_focal_points=C, focus_dims=3)
+        self.spatial_focus = (
+            SpatialFocus(
+                similarity_func="cosine",
+                similarity_transform=sb.nnet.activations.GumbelSoftmax(
+                    spatial_focus_tau, dim=0
+                ),
+                n_focal_points=C,
+                focus_dims=3,
+            ),
+        )
         self.conv_module = torch.nn.Sequential()
         # Spatial depthwise convolution
         cnn_spatial_kernels = (
