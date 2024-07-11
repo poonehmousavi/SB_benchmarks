@@ -23,6 +23,7 @@ import numpy as np
 import speechbrain as sb
 import torch
 import yaml
+import torch_geometric
 from hyperpyyaml import load_hyperpyyaml
 from torch.nn import init
 from torch_geometric.data import Data
@@ -126,6 +127,7 @@ class MOABBBrain(sb.Brain):
                 edge_index=torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
                 pos=torch.rand((self.hparams.input_shape[2], 3)),
             )
+            sample_graph = torch_geometric.data.Batch.from_data_list([sample_graph, sample_graph])
             sample_graph = sample_graph.to(self.device)
             model_summary = pyg_summary(self.hparams.model, sample_graph)
             print(model_summary)
