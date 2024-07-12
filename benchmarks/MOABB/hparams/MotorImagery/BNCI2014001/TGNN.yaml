@@ -51,7 +51,7 @@ metrics:
 n_train_examples: 100  # it will be replaced in the train script
 # checkpoints to average
 avg_models: 10 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
-number_of_epochs: 862 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
+number_of_epochs: 200 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
 lr: 0.001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
 max_lr: !ref <lr> # Upper bound of the cycle (max value of the lr)
@@ -89,21 +89,34 @@ sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
-cnn_kernels: [64, 128, 256]
-cnn_kernelsize: [51, 33, 24]
-cnn_pool: [6, 4]
+# cnn_kernels: [64, 128, 256]
+# cnn_kernelsize: [61, 51, 33]
+# cnn_pool: [4, 4]
+cnn_kernels_1: 64
+cnn_kernels_2: 128
+cnn_kernels_3: 256
+cnn_kernelsize_1: 61
+cnn_kernelsize_2: 51
+cnn_kernelsize_3: 33
+cnn_pool_1: 4
+cnn_pool_2: 4
 cnn_pool_type: 'avg'
-dense_max_norm: 0.25  # kernel max-norm constaint of the dense layer
-dropout: 0.2 # @orion_step1: --dropout~"uniform(0.0, 0.5)"
-activation_type: 'relu'
-chunk_size: 64
-embed_dim: 128
+dropout: 0.2
+activation_type: 'elu'
+embed_dim: 256
 model: !new:models.TGNN.TGNN
     input_shape: !ref <input_shape>
-    cnn_kernels: !ref <cnn_kernels>
-    cnn_kernelsize: !ref <cnn_kernelsize>
-    cnn_pool: !ref <cnn_pool>
-    chunk_size: !ref <chunk_size>
+    # cnn_kernels: !ref <cnn_kernels>
+    # cnn_kernelsize: !ref <cnn_kernelsize>
+    # cnn_pool: !ref <cnn_pool>
+    cnn_kernels_1: !ref <cnn_kernels_1>
+    cnn_kernels_2: !ref <cnn_kernels_2>
+    cnn_kernels_3: !ref <cnn_kernels_3>
+    cnn_kernelsize_1: !ref <cnn_kernelsize_1>
+    cnn_kernelsize_2: !ref <cnn_kernelsize_2>
+    cnn_kernelsize_3: !ref <cnn_kernelsize_3>
+    cnn_pool_1: !ref <cnn_pool_1>
+    cnn_pool_2: !ref <cnn_pool_2>
     cnn_pool_type: !ref <cnn_pool_type>
     activation_type: !ref <activation_type>
     embed_dim: !ref <embed_dim>
