@@ -89,34 +89,18 @@ sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
 # MODEL
 input_shape: [null, !ref <T>, !ref <C>, null]
-# cnn_kernels: [64, 128, 256]
-# cnn_kernelsize: [61, 51, 33]
-# cnn_pool: [4, 4]
-cnn_kernels_1: 64
-cnn_kernels_2: 128
-cnn_kernels_3: 256
-cnn_kernelsize_1: 61
-cnn_kernelsize_2: 51
-cnn_kernelsize_3: 33
-cnn_pool_1: 4
-cnn_pool_2: 4
+cnn_kernels: [64, 128, 256]
+cnn_kernelsize: [61, 51, 33]
+cnn_pool: [4, 4]
 cnn_pool_type: 'avg'
 dropout: 0.2
 activation_type: 'elu'
 embed_dim: 256
 model: !new:models.TGNN.TGNN
     input_shape: !ref <input_shape>
-    # cnn_kernels: !ref <cnn_kernels>
-    # cnn_kernelsize: !ref <cnn_kernelsize>
-    # cnn_pool: !ref <cnn_pool>
-    cnn_kernels_1: !ref <cnn_kernels_1>
-    cnn_kernels_2: !ref <cnn_kernels_2>
-    cnn_kernels_3: !ref <cnn_kernels_3>
-    cnn_kernelsize_1: !ref <cnn_kernelsize_1>
-    cnn_kernelsize_2: !ref <cnn_kernelsize_2>
-    cnn_kernelsize_3: !ref <cnn_kernelsize_3>
-    cnn_pool_1: !ref <cnn_pool_1>
-    cnn_pool_2: !ref <cnn_pool_2>
+    cnn_kernels: !ref <cnn_kernels>
+    cnn_kernelsize: !ref <cnn_kernelsize>
+    cnn_pool: !ref <cnn_pool>
     cnn_pool_type: !ref <cnn_pool_type>
     activation_type: !ref <activation_type>
     embed_dim: !ref <embed_dim>

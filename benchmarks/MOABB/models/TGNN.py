@@ -41,17 +41,9 @@ class TGNN(torch.nn.Module):
     def __init__(
         self,
         input_shape,  # (1, T, C, 1)
-        # cnn_kernels,
-        # cnn_kernelsize,
-        # cnn_pool,
-        cnn_kernels_1,
-        cnn_kernels_2,
-        cnn_kernels_3,
-        cnn_kernelsize_1,
-        cnn_kernelsize_2,
-        cnn_kernelsize_3,
-        cnn_pool_1,
-        cnn_pool_2,
+        cnn_kernels,
+        cnn_kernelsize,
+        cnn_pool,
         cnn_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
@@ -69,10 +61,6 @@ class TGNN(torch.nn.Module):
             self.activation = torch.nn.ReLU()
 
         self.T = input_shape[1]
-        
-        cnn_kernels = [cnn_kernels_1, cnn_kernels_2, cnn_kernels_3]
-        cnn_kernelsize = [self.ensure_odd(cnn_kernelsize_1), self.ensure_odd(cnn_kernelsize_2), self.ensure_odd(cnn_kernelsize_3)]
-        cnn_pool = [cnn_pool_1, cnn_pool_2]
 
         # Temporal convolutional module
         self.temporal_conv_module = nn.Sequential(
@@ -146,9 +134,6 @@ class TGNN(torch.nn.Module):
 
         x = self.dense_module(x)  # (B, classes)
         return x
-    
-    def ensure_odd(self, n):
-        return n if n % 2 != 0 else n + 1
 
 
 # GNN model
