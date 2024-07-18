@@ -5,6 +5,7 @@ It was proposed for P300, error-related negativity, motor execution, motor image
 Authors
  * Davide Borra, 2021
 """
+from functools import partial
 import torch
 from models.SpatialFocus import SpatialFocus
 import speechbrain as sb
@@ -112,16 +113,15 @@ class EEGNet(torch.nn.Module):
                 input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
             ),
         )
-        self.spatial_focus = (
-            SpatialFocus(
+        self.spatial_focus = SpatialFocus(
                 similarity_func="cosine",
-                similarity_transform=sb.nnet.activations.GumbelSoftmax(
-                    spatial_focus_tau, dim=0
+                similarity_transform=partial(
+                    torch.nn.functional.gumbel_softmax,
+                    tau=spatial_focus_tau, dim=0
                 ),
                 n_focal_points=C,
                 focus_dims=3,
-            ),
-        )
+            )
         self.conv_module = torch.nn.Sequential()
         # Spatial depthwise convolution
         cnn_spatial_kernels = (

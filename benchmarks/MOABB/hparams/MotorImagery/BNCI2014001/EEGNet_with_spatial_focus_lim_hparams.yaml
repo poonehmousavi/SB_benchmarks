@@ -25,15 +25,15 @@ events_to_load: null # all events will be loaded
 original_sample_rate: 250 # Original sampling rate provided by dataset authors
 sample_rate: 125 # Target sampling rate (Hz)
 # band-pass filtering cut-off frequencies
-fmin: 0.13 # @orion_step1: --fmin~"uniform(0.1, 5, precision=2)"
-fmax: 46.0 # @orion_step1: --fmax~"uniform(20.0, 50.0, precision=3)"
+fmin: 0.1 # @orion_step2: --fmin~"uniform(0.1, 5, precision=2)"
+fmax: 50.0 # @orion_step2: --fmax~"uniform(20.0, 50.0, precision=3)"
 n_classes: 4
 # tmin, tmax respect to stimulus onset that define the interval attribute of the dataset class
 # trial begins (0 s), cue (2 s, 1.25 s long); each trial is 6 s long
 # dataset interval starts from 2
 # -->tmin tmax are referred to this start value (e.g., tmin=0.5 corresponds to 2.5 s)
 tmin: 0.
-tmax: 4.0 # @orion_step1: --tmax~"uniform(1.0, 4.0, precision=2)"
+tmax: 4.0 # @orion_step2: --tmax~"uniform(1.0, 4.0, precision=2)"
 n_steps_channel_selection: null
 T: !apply:math.ceil
   - !ref <sample_rate> * (<tmax> - <tmin>)
@@ -58,9 +58,9 @@ metrics:
 # TRAINING HPARS
 n_train_examples: 100 # it will be replaced in the train script
 # checkpoints to average
-avg_models: 10 # @orion_step1: --avg_models~"uniform(1, 15,discrete=True)"
-number_of_epochs: 862 # @orion_step1: --number_of_epochs~"uniform(250, 1000, discrete=True)"
-lr: 0.0001 # @orion_step1: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
+avg_models: 1 # @orion_step2: --avg_models~"uniform(1, 15,discrete=True)"
+number_of_epochs: 250 # @orion_step2: --number_of_epochs~"uniform(250, 1000, discrete=True)"
+lr: 0.0001 # @orion_step2: --lr~"choices([0.01, 0.005, 0.001, 0.0005, 0.0001])"
 # Learning rate scheduling (cyclic learning rate is used here)
 max_lr: !ref <lr> # Upper bound of the cycle (max value of the lr)
 base_lr: 0.00000001 # Lower bound in the cycle (min value of the lr)
@@ -84,17 +84,17 @@ valid_ratio: 0.2
 
 # DATA AUGMENTATION
 # cutcat (disabled when min_num_segments=max_num_segments=1)
-max_num_segments: 3 # orion_step2: --max_num_segments~"uniform(2, 6, discrete=True)"
+max_num_segments: 3 # @orion_step3: --max_num_segments~"uniform(2, 6, discrete=True)"
 cutcat: !new:speechbrain.augment.time_domain.CutCat
   min_num_segments: 2
   max_num_segments: !ref <max_num_segments>
 # random amplitude gain between 0.5-1.5 uV (disabled when amp_delta=0.)
-amp_delta: 0.01742 # orion_step2: --amp_delta~"uniform(0.0, 0.5)"
+amp_delta: 0.01742 # @orion_step3: --amp_delta~"uniform(0.0, 0.5)"
 rand_amp: !new:speechbrain.augment.time_domain.RandAmp
   amp_low: !ref 1 - <amp_delta>
   amp_high: !ref 1 + <amp_delta>
 # random shifts between -300 ms to 300 ms (disabled when shift_delta=0.)
-shift_delta_: 1 # orion_step2: --shift_delta_~"uniform(0, 25, discrete=True)"
+shift_delta_: 1 # @orion_step3: --shift_delta_~"uniform(0, 25, discrete=True)"
 shift_delta: !ref 1e-2 * <shift_delta_> # 0.250 # 0.-0.25 with steps of 0.01
 min_shift: !apply:math.floor
   - !ref 0 - <sample_rate> * <shift_delta>
@@ -105,8 +105,8 @@ time_shift: !new:speechbrain.augment.freq_domain.RandomShift
   max_shift: !ref <max_shift>
   dim: 1
 # injection of gaussian white noise
-snr_white_low: 15.0 # orion_step2: --snr_white_low~"uniform(0.0, 15, precision=2)"
-snr_white_delta: 19.1 # orion_step2: --snr_white_delta~"uniform(5.0, 20.0, precision=3)"
+snr_white_low: 15.0 # @orion_step3: --snr_white_low~"uniform(0.0, 15, precision=2)"
+snr_white_delta: 19.1 # @orion_step3: --snr_white_delta~"uniform(5.0, 20.0, precision=3)"
 snr_white_high: !ref <snr_white_low> + <snr_white_delta>
 add_noise_white: !new:speechbrain.augment.time_domain.AddNoise
   snr_low: !ref <snr_white_low>
