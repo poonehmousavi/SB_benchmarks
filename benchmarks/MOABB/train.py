@@ -39,6 +39,9 @@ class MOABBBrain(sb.Brain):
                 if mod.bias is not None:
                     init.constant_(mod.bias, 0)
 
+        # foo = torch.load('foo.torch')
+        # model.spatial_focus.similarity_module.load_state_dict(foo)
+
     def compute_forward(self, batch, stage):
         "Given an input batch it computes the model output."
         inputs = batch[0].to(self.device)
@@ -288,11 +291,10 @@ def run_experiment(hparams, run_opts, datasets):
         datasets["test"].dataset.tensors[0].shape[0],
     )
     logger.info(datasets_summary)
-    hparams["ch_positions"] = torch.from_numpy(datasets["ch_positions"])
-    if (
-        "normalize" in hparams
-    ):  # TODO: Use a different normalizer for data vs. positions
-        hparams["ch_positions"] = hparams["normalize"](hparams["ch_positions"])
+    ch_positions = datasets["ch_positions"]
+    hparams["ch_positions"] = torch.from_numpy(
+        2 * ((ch_positions - ch_positions.min(0)) / (ch_positions.max(0) - ch_positions.min(0)) - 0.5)
+    )
 
     brain = MOABBBrain(
         modules={"model": hparams["model"]},

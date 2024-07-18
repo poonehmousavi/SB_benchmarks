@@ -5,6 +5,7 @@ It was proposed for P300, error-related negativity, motor execution, motor image
 Authors
  * Davide Borra, 2021
 """
+
 from functools import partial
 import torch
 from models.SpatialFocus import SpatialFocus
@@ -71,7 +72,7 @@ class EEGNet(torch.nn.Module):
         dense_max_norm=0.25,
         dense_n_neurons=4,
         activation_type="elu",
-        spatial_focus_tau=1.0,
+        spatial_focus=None,
     ):
         super().__init__()
         if input_shape is None:
@@ -110,18 +111,12 @@ class EEGNet(torch.nn.Module):
         self.temporal_frontend.add_module(
             "bnorm_0",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_temporal_kernels, momentum=0.01, affine=True,
+                input_size=cnn_temporal_kernels,
+                momentum=0.01,
+                affine=True,
             ),
         )
-        self.spatial_focus = SpatialFocus(
-                similarity_func="cosine",
-                similarity_transform=partial(
-                    torch.nn.functional.gumbel_softmax,
-                    tau=spatial_focus_tau, dim=0
-                ),
-                n_focal_points=C,
-                focus_dims=3,
-            )
+        self.spatial_focus = spatial_focus
         self.conv_module = torch.nn.Sequential()
         # Spatial depthwise convolution
         cnn_spatial_kernels = (
@@ -143,7 +138,9 @@ class EEGNet(torch.nn.Module):
         self.conv_module.add_module(
             "bnorm_1",
             sb.nnet.normalization.BatchNorm2d(
-                input_size=cnn_spatial_kernels, momentum=0.01, affine=True,
+                input_size=cnn_spatial_kernels,
+                momentum=0.01,
+                affine=True,
             ),
         )
         self.conv_module.add_module("act_1", activation)
@@ -215,7 +212,8 @@ class EEGNet(torch.nn.Module):
         # DENSE MODULE
         self.dense_module = torch.nn.Sequential()
         self.dense_module.add_module(
-            "flatten", torch.nn.Flatten(),
+            "flatten",
+            torch.nn.Flatten(),
         )
         self.dense_module.add_module(
             "fc_out",
@@ -257,7 +255,8 @@ class EEGNet(torch.nn.Module):
         if positions is None:
             positions = torch.zeros((x.shape[-2], 3), device=x.device)
         x = self.temporal_frontend(x)
-        x = self.spatial_focus(x, positions)
+        if self.spatial_focus is not None:
+            x = self.spatial_focus(x, positions)
         x = self.conv_module(x)
         x = self.dense_module(x)
         return x

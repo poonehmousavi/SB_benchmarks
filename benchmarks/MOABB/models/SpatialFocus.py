@@ -3,37 +3,24 @@ import torch.nn as nn
 
 
 class SpatialFocus(nn.Module):
-    def __init__(
-        self,
-        n_focal_points,
-        focus_dims=3,
-        similarity_func="cosine",
-        similarity_transform=nn.Softmax(0),
-    ):
+    def __init__(self, projection_dim, position_dim=3, tau=1.0, sigma=0.0):
         super().__init__()
-        self.n_focal_points = n_focal_points
-        self.focus_dims = focus_dims
-        self.similarity_func = similarity_func
-        self.similarity_transform = similarity_transform
+        self.projection_dim = projection_dim
+        self.position_dim = position_dim
+        self.tau = tau
+        self.sigma = sigma
 
-        self.focal_points = nn.Embedding(
-            num_embeddings=n_focal_points, embedding_dim=self.focus_dims
+        self.similarity_module = nn.Sequential(
+            nn.Linear(position_dim, projection_dim),
+            nn.ELU(),
+            nn.Linear(projection_dim, projection_dim),
         )
+        self.softmax = nn.Softmax(dim=-2)
 
     def forward(self, x: torch.Tensor, positions: torch.Tensor):
-        focal_points = self.focal_points.weight
-
-        if self.similarity_func == "cosine":
-            similarity = nn.functional.cosine_similarity(
-                positions.unsqueeze(1), focal_points.unsqueeze(0), dim=-1
-            )
-        else:
-            similarity = self.similarity_func(positions, focal_points)
-
-        if self.similarity_transform:
-            weights = self.similarity_transform(similarity)
-        else:
-            weights = similarity
-
+        if self.training and self.sigma > 0:
+            positions = positions + torch.randn_like(positions) * self.sigma
+        weights = self.similarity_module(positions)
+        weights = self.softmax(weights / self.tau)
         x = torch.einsum("...cf, cd -> ...df", x, weights)
         return x
