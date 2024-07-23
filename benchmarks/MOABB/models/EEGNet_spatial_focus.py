@@ -6,9 +6,7 @@ Authors
  * Davide Borra, 2021
 """
 
-from functools import partial
 import torch
-from models.SpatialFocus import SpatialFocus
 import speechbrain as sb
 
 
@@ -57,6 +55,7 @@ class EEGNet(torch.nn.Module):
 
     def __init__(
         self,
+        spatial_focus,
         input_shape=None,  # (1, T, C, 1)
         cnn_temporal_kernels=8,
         cnn_temporal_kernelsize=(33, 1),
@@ -72,7 +71,6 @@ class EEGNet(torch.nn.Module):
         dense_max_norm=0.25,
         dense_n_neurons=4,
         activation_type="elu",
-        spatial_focus=None,
     ):
         super().__init__()
         if input_shape is None:
@@ -207,6 +205,12 @@ class EEGNet(torch.nn.Module):
         )
         self.conv_module.add_module("dropout_3", torch.nn.Dropout(p=dropout))
 
+        self.encoder = torch.nn.Sequential(
+            self.temporal_frontend,
+            self.spatial_focus,
+            self.conv_module
+        )
+
         # Shape of intermediate feature maps
         dense_input_size = self._num_flat_features(input_shape)
         # DENSE MODULE
@@ -244,7 +248,7 @@ class EEGNet(torch.nn.Module):
             num_features *= s
         return num_features
 
-    def forward(self, x, positions=None):
+    def forward(self, x):
         """Returns the output of the model.
 
         Arguments
@@ -252,11 +256,8 @@ class EEGNet(torch.nn.Module):
         x : torch.Tensor (batch, time, EEG channel, channel)
             Input to convolve. 4d tensors are expected.
         """
-        if positions is None:
-            positions = torch.zeros((x.shape[-2], 3), device=x.device)
-        x = self.temporal_frontend(x)
-        if self.spatial_focus is not None:
-            x = self.spatial_focus(x, positions)
-        x = self.conv_module(x)
+        if x.pos is None:
+            x.pos = torch.zeros((x.shape[-2], 3), device=x.device)
+        x = self.encoder(x)
         x = self.dense_module(x)
         return x
