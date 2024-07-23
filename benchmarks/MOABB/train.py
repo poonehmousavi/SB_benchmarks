@@ -39,6 +39,9 @@ class MOABBBrain(sb.Brain):
                 if mod.bias is not None:
                     init.constant_(mod.bias, 0)
 
+        # foo = torch.load('foo.torch')
+        # model.spatial_focus.similarity_module.load_state_dict(foo)
+
     def compute_forward(self, batch, stage):
         "Given an input batch it computes the model output."
         inputs = batch[0].to(self.device)
@@ -54,7 +57,7 @@ class MOABBBrain(sb.Brain):
         # Normalization
         if hasattr(self.hparams, "normalize"):
             inputs = self.hparams.normalize(inputs)
-        return self.modules.model(inputs)
+        return self.modules.model(inputs, self.hparams.ch_positions)
 
     def compute_objectives(self, predictions, batch, stage):
         "Given the network predictions and targets computes the loss."
@@ -83,6 +86,9 @@ class MOABBBrain(sb.Brain):
 
     def on_fit_start(self,):
         """Gets called at the beginning of ``fit()``"""
+        self.hparams.ch_positions = self.hparams.ch_positions.float().to(
+            self.device
+        )
         self.init_model(self.hparams.model)
         self.init_optimizers()
         in_shape = (
@@ -285,6 +291,10 @@ def run_experiment(hparams, run_opts, datasets):
         datasets["test"].dataset.tensors[0].shape[0],
     )
     logger.info(datasets_summary)
+    ch_positions = datasets["ch_positions"]
+    hparams["ch_positions"] = torch.from_numpy(
+        2 * ((ch_positions - ch_positions.min(0)) / (ch_positions.max(0) - ch_positions.min(0)) - 0.5)
+    )
 
     brain = MOABBBrain(
         modules={"model": hparams["model"]},

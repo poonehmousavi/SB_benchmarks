@@ -1,6 +1,7 @@
-mne==1.6.1
+mne
 moabb
 orion
 orion[profet]
 scikit-learn
+torch_geometric
 torchinfo
