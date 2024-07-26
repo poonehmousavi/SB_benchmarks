@@ -83,7 +83,7 @@ normalize: !name:speechbrain.processing.signal_processing.mean_std_norm
 # WEIGHTS AND BIASES Configuration
 project: "BNCI2014001"
 prefix_name: 'TGNN'
-mode: "online"
+mode: "disabled"
 entity: "neuro-gflow"
 sweep_run: False # to indicate if you are running sweeps or normal wandb runs
 
@@ -93,6 +93,7 @@ cnn_kernels: [64, 128, 256]
 cnn_kernelsize: [61, 51, 33]
 cnn_pool: [4, 4]
 cnn_pool_type: 'avg'
+graph_pool_type: "attention"
 dropout: 0.2
 activation_type: 'elu'
 embed_dim: 256
@@ -102,6 +103,7 @@ model: !new:models.TGNN.TGNN
     cnn_kernelsize: !ref <cnn_kernelsize>
     cnn_pool: !ref <cnn_pool>
     cnn_pool_type: !ref <cnn_pool_type>
+    graph_pool_type: !ref <graph_pool_type>
     activation_type: !ref <activation_type>
     embed_dim: !ref <embed_dim>
     dropout: !ref <dropout>

@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric
+from torch_scatter import scatter
 from torch_geometric.nn import GCNConv, global_mean_pool
 import speechbrain as sb
 
@@ -17,6 +18,26 @@ class PositionEncoder(torch.nn.Module):
 
     def forward(self, pos):
         return self.mlp(pos)
+
+
+# GNN model
+class GnnModel(torch.nn.Module):
+    def __init__(self, in_features, out_features, activation=torch.nn.ReLU()):
+        super().__init__()
+        # Spatial Graph convolution
+        self.spatial_gnn = torch_geometric.nn.Sequential('x, edge_index', [
+            (GCNConv(in_features, out_features, node_dim=1), 'x, edge_index -> x'),
+            (activation, 'x -> x'),
+            (GCNConv(out_features, out_features, node_dim=1), 'x, edge_index -> x'),
+            (activation, 'x -> x'),
+        ])
+
+    def forward(self, x, edge_index):
+        # permute x to [T, batch_size * num_nodes, in_channels]
+        x = x.permute(2, 0, 1)  # (N, D, T) --> # (T, N, D)
+        x = self.spatial_gnn(x, edge_index)  # (T, N, D')
+        x = x.permute(1, 0, 2)  # (N, T, D')
+        return x
 
 
 class TGNN(torch.nn.Module):
@@ -45,6 +66,7 @@ class TGNN(torch.nn.Module):
         cnn_kernelsize,
         cnn_pool,
         cnn_pool_type="avg",
+        graph_pool_type="avg",
         dropout=0.5,
         embed_dim=768,
         dense_n_neurons=4,
@@ -61,6 +83,7 @@ class TGNN(torch.nn.Module):
             self.activation = torch.nn.ReLU()
 
         self.T = input_shape[1]
+        self.graph_pool_type = graph_pool_type
 
         # Temporal convolutional module
         self.temporal_conv_module = nn.Sequential(
@@ -92,7 +115,10 @@ class TGNN(torch.nn.Module):
 
         # Spatial Graph convolution
         self.spatial_gnn = GnnModel(in_features=in_channels, out_features=embed_dim, activation=self.activation)
-        self.global_pool = global_mean_pool
+        if self.graph_pool_type == 'avg':
+            self.global_pool = global_mean_pool
+        elif self.graph_pool_type == 'attention':
+            self.global_pool = AttentionPool(position_dim=3, projection_dim=embed_dim, activation=self.activation)
 
         in_channels = embed_dim * node_fts.shape[2]
 
@@ -121,36 +147,54 @@ class TGNN(torch.nn.Module):
         x = self.temporal_conv_module(x).squeeze()  # (N, 1, T, 1) --> (N, D, T')
 
         # Add positional encoding
-        pos_encoding = self.pos_encoder(graph.pos)  # (N, 3) ---> (N, D)
-        pos_encoding = pos_encoding.unsqueeze(-1).repeat(1, 1, x.size(-1))  # (N, D, T')
+        pos_encoding = self.pos_encoder(graph.pos).unsqueeze(-1)  # (N, 3) ---> (N, D, 1)
         x = x + pos_encoding  # (N, D, T')
 
         # Apply GNN message passing on every T step
-        x = self.spatial_gnn(x, graph.edge_index)  # (N, D', T')
-
+        x = self.spatial_gnn(x, graph.edge_index)  # (N, T', D')
         # Graph level pooling
-        x = self.flatten(x)  # (N, D', T') ---> (N, F)
-        x = self.global_pool(x, graph.batch)  # (B, F)
+        x = self.graph_pooler(x, graph.batch, positions=graph.pos)  # (B, T', D')
 
+        # flatten + dense
+        x = self.flatten(x)  # (B, -1)
         x = self.dense_module(x)  # (B, classes)
         return x
 
-
-# GNN model
-class GnnModel(torch.nn.Module):
-    def __init__(self, in_features, out_features, activation=torch.nn.ReLU()):
-        super().__init__()
-        # Spatial Graph convolution
-        self.spatial_gnn = torch_geometric.nn.Sequential('x, edge_index', [
-            (GCNConv(in_features, out_features, node_dim=1), 'x, edge_index -> x'),
-            (activation, 'x -> x'),
-            (GCNConv(out_features, out_features, node_dim=1), 'x, edge_index -> x'),
-            (activation, 'x -> x'),
-        ])
-
-    def forward(self, x, edge_index):
-        # permute x to [T, batch_size * num_nodes, in_channels]
-        x = x.permute(2, 0, 1)  # (N, D, T) --> # (T, N, D)
-        x = self.spatial_gnn(x, edge_index)  # (T, N, D')
-        x = x.permute(1, 2, 0)  # (N, D', T)
+    def graph_pooler(self, x, batch, positions=None):
+        # Graph level pooling
+        if self.graph_pool_type == 'attention':
+            assert positions is not None, "To use attention global pooling, provide the positions."
+            return self.global_pool(x, batch, positions)
+        
+        N, T, D = x.shape
+        x_reshaped = x.reshape(N, -1)
+        pooled = self.global_pool(x_reshaped, batch)
+        x = pooled.reshape(-1, T, D)
         return x
+
+
+class AttentionPool(nn.Module):
+    def __init__(self, position_dim=3, projection_dim=64, tem=1.0, activation=nn.ELU()):
+        super().__init__()
+        self.position_dim = position_dim
+        self.projection_dim = projection_dim
+        self.tem = tem
+
+        self.position_mlp = nn.Sequential(
+            nn.Linear(position_dim, projection_dim),
+            activation,
+            nn.Linear(projection_dim, projection_dim)
+        )
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x, batch, positions):
+
+        # Compute attention weights
+        weights = self.position_mlp(positions)  # (N, D)
+        weights = self.softmax(weights / self.tem)  # (N, D)
+
+        # Apply attention and pool
+        x = x * weights.unsqueeze(1)  # (N, T, D) * (N, 1, D) = (N, T, D)
+        pooled = scatter(x, batch, dim=0, reduce='sum')  # (B, T, D)
+
+        return pooled
