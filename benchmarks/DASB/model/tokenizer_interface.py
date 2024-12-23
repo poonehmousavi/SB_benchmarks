@@ -115,6 +115,7 @@ class SpeechTokenizer(SpeechTokenizer_interface, BaseTokenizer):
     def __init__(self, *args, **kwargs):
         SpeechTokenizer_interface.__init__(self, *args, **kwargs)
         BaseTokenizer.__init__(self)
+        self.sample_rate = 16000
 
     @torch.no_grad()
     def sig_to_tokens(self, signal, lengths, num_codebooks=None, **kwargs):

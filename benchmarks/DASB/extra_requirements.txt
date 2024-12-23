@@ -8,3 +8,4 @@ speechtokenizer>=0.1.2
 tensorboard
 tgt
 unidecode
+kaldiio
