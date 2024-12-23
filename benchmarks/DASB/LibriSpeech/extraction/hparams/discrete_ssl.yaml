@@ -37,7 +37,7 @@ dataloader_opts:
 ### Configuration for  discrete SSL model
 # ssl_model_type: hubert, wavlm, wav2vec2
 # ssl_hub: facebook/hubert-large-ll60k, microsoft/wavlm-large,  facebook/wav2vec2-large
-ssl_model_type: wavml
+ssl_model_type: wavlm
 ssl_hub: microsoft/wavlm-large
 ssl_folder: !ref <save_folder>/ssl_checkpoint
 kmeans_cache_dir: !ref <save_folder>/kmeans_checkpoint
