@@ -62,16 +62,14 @@ if __name__ == "__main__":
         csv_path = hparams[f"{split}_csv"]
         name = pl.Path(csv_path).stem
         dataset = sb.dataio.dataset.DynamicItemDataset.from_csv(
-            csv_path=csv_path,
-            replacements={"data_root": data_folder},
+            csv_path=csv_path, replacements={"data_root": data_folder},
         )
         datasets.append(dataset)
 
     for split in hparams["test_csv"]:
         name = pl.Path(split).stem
         dataset = sb.dataio.dataset.DynamicItemDataset.from_csv(
-            csv_path=split,
-            replacements={"data_root": data_folder},
+            csv_path=split, replacements={"data_root": data_folder},
         )
         datasets.append(dataset)
 

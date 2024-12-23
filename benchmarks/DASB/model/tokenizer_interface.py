@@ -39,15 +39,15 @@ class BaseTokenizer(ABC):
     @abstractmethod
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size, num_codebooks, device="cpu", **kwargs
+        self, vocab_size, num_codebooks, **kwargs
     ):
         """Get codebook embeddings."""
         pass
 
 
 class EncodecTokenizer(Encodec, BaseTokenizer):
-    def __init__(self, source, **kwargs):
-        Encodec.__init__(self, source=source, **kwargs)
+    def __init__(self, *args, **kwargs):
+        Encodec.__init__(self, *args, **kwargs)
         BaseTokenizer.__init__(self)
 
     @torch.no_grad()
@@ -70,7 +70,7 @@ class EncodecTokenizer(Encodec, BaseTokenizer):
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size=None, num_codebooks=None, device=None, **kwargs
+        self, vocab_size=None, num_codebooks=None, **kwargs
     ):
         embeddings = self.vocabulary
         return embeddings.reshape(-1, embeddings.shape[-1])
@@ -97,7 +97,7 @@ class DACTokenizer(DAC, BaseTokenizer):
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size, num_codebooks, device="cpu", **kwargs
+        self, vocab_size=None, num_codebooks=None , **kwargs
     ):
         toks = torch.arange(vocab_size, device=device)
         toks = toks[:, None, None].expand(-1, num_codebooks, -1).clone()
@@ -135,11 +135,11 @@ class SpeechTokenizer(SpeechTokenizer_interface, BaseTokenizer):
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size, num_codebooks, device="cpu", **kwargs
+        self, vocab_size=None, num_codebooks=None , **kwargs
     ):
-        toks = torch.arange(vocab_size, device=device)
+        toks = torch.arange(vocab_size)
         toks = toks[None, :, None].expand(num_codebooks, -1, -1).clone()
-        self.to(device).eval()
+        self.eval()
         embs = [
             self.model.quantizer.vq.layers[i].decode(indices)
             for i, indices in enumerate(toks)
@@ -153,29 +153,31 @@ class DiscreteSSLTokenizer(DiscreteSSL, BaseTokenizer):
         BaseTokenizer.__init__(self)
 
     @torch.no_grad()
-    def sig_to_tokens(self, signal, lengths, num_codebooks=None, **kwargs):
+    def sig_to_tokens(self, signal, lengths, num_codebooks=None,**kwargs):
         self.eval()
-        tokens, _, _ = self.encode(signal, lengths)
-        if num_codebooks:
-            if tokens.shape[-1] < num_codebooks:
-                raise ValueError(
-                    f"Model only outputs {tokens.shape[-1]} codebooks, but {num_codebooks} requested"
-                )
-            tokens = tokens[..., :num_codebooks]
+        tokens, _, _ = self.encode(signal, lengths, SSL_layers=num_codebooks,**kwargs)
         return tokens
 
     @torch.no_grad()
     def tokens_to_sig(self, tokens, **kwargs):
         self.eval()
-        return self.decode(tokens)
+        return self.decode(tokens, **kwargs)
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size, num_codebooks, device="cpu", **kwargs
+        self, vocab_size=None, num_codebooks=None, **kwargs
     ):
-        toks = torch.arange(vocab_size, device=device)
-        toks = toks[None, :, None].expand(num_codebooks, -1, -1).clone()
-        self.to(device).eval()
-        return torch.cat(
-            [self.quantizer.codebooks[i] for i in range(num_codebooks)]
-        )
+        embs = []
+        for layer_num, vocabulary in zip(
+            self.ssl_layer_ids,
+            self.vocabularies,
+        ):
+            if layer_num not in num_codebooks:
+                continue
+            embs.append(
+                torch.as_tensor(
+                    vocabulary, dtype=torch.float32
+                )
+            )
+        embs = torch.cat(embs)
+        return embs

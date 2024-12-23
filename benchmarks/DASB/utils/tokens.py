@@ -191,8 +191,7 @@ class TokensExtractor:
             info = torchaudio.info(wav)
             sig = sb.dataio.dataio.read_audio(wav)
             sig = torchaudio.transforms.Resample(
-                info.sample_rate,
-                self.sample_rate,
+                info.sample_rate, self.sample_rate,
             )(sig)
             return sig
 
@@ -283,9 +282,7 @@ class TokensLoader:
     """
 
     def __init__(
-        self,
-        data_path,
-        save_name="tokens",
+        self, data_path, save_name="tokens",
     ):
         self.data_path = pl.Path(data_path)
         if not self.data_path.exists():
