@@ -63,7 +63,7 @@ class Discrete_EmbeddingLayer(torch.nn.Module):
     ):
         super(Discrete_EmbeddingLayer, self).__init__()
         self.vocab_size = vocab_size
-        self.num_codebooks = num_codebooks
+        self.num_codebooks = len(num_codebooks) if isinstance(num_codebooks, list) else num_codebooks
         self.freeze = freeze
         self.embedding = torch.nn.Embedding(
             num_codebooks * vocab_size, emb_dim
