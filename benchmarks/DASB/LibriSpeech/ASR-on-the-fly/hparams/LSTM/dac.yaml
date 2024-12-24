@@ -135,7 +135,7 @@ prune_history: False
 
 ############################## models ################################
 # EnCodec model (see https://huggingface.co/docs/transformers/v4.31.0/en/model_doc/encodec)
-tokenizer: !new:model.tokenizer_interface.DACTokenizer
+tokenizer: !new:utils.tokenizer_interface.DACTokenizer
    model_type: !ref <model_type>
    model_bitrate: !ref <model_bitrate>
    load_pretrained: True

@@ -85,7 +85,7 @@ ssl_model: !apply:speechbrain.utils.hparams.choice
       output_all_hiddens: True
       save_path: !ref <ssl_folder>
 
-tokenizer: !new:model.tokenizer_interface.DiscreteSSLTokenizer
+tokenizer: !new:utils.tokenizer_interface.DiscreteSSLTokenizer
   save_path: !ref <kmeans_cache_dir>
   ssl_model: !ref <ssl_model>
   vocoder_repo_id: !ref <vocoder_repo_id>

@@ -51,7 +51,7 @@ sample_rate: 24000
 encoder_dim: 1024
 save_embedding: False
 
-tokenizer: !new:model.tokenizer_interface.DACTokenizer
+tokenizer: !new:utils.tokenizer_interface.DACTokenizer
   model_type: !ref <model_type>
   model_bitrate: !ref <model_bitrate>
   load_pretrained: True
