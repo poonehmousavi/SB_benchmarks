@@ -35,7 +35,7 @@ dataloader_opts:
   num_workers: !ref <num_workers>
 
 vocab_size: 1024
-num_codebooks: 2
+num_codebooks: 8
 sample_rate: 16000
 encoder_dim: 1024
 freeze_embedding: False
