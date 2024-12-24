@@ -138,7 +138,7 @@ class SpeechTokenizer(SpeechTokenizer_interface, BaseTokenizer):
     def get_pretrained_embeddings(
         self, vocab_size=None, num_codebooks=None , **kwargs
     ):
-        toks = torch.arange(vocab_size)
+        toks = torch.arange(vocab_size).to(next(self.parameters()).device)
         toks = toks[None, :, None].expand(num_codebooks, -1, -1).clone()
         self.eval()
         embs = [

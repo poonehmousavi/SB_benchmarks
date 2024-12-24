@@ -45,7 +45,7 @@ kmeans_dataset: LibriSpeech
 vocoder_repo_id: speechbrain/hifigan-wavlm-k1000-LibriTTS
 freeze_ssl: True
 freeze_feature_extractor: True
-num_clusters: 1000
+vocab_size: 1000
 save_embedding: False
 
 ### Config for Tokenizer
@@ -90,7 +90,7 @@ tokenizer: !new:model.tokenizer_interface.DiscreteSSLTokenizer
    ssl_model: !ref <ssl_model>
    vocoder_repo_id: !ref <vocoder_repo_id>
    kmeans_dataset: !ref <kmeans_dataset>
-   num_clusters: !ref <num_clusters>
+   num_clusters: !ref <vocab_size>
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>
