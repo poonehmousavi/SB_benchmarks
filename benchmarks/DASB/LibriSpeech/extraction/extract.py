@@ -93,7 +93,7 @@ if __name__ == "__main__":
         logger.info(f"Saving embeddings ...")
         tokens_extractor.save_pretrained_embeddings(
             (save_folder / "embeddings").as_posix(),
-            hparams["vocab_size"],
-            hparams["num_codebooks"],
+            vocab_size=hparams["vocab_size"],
+            num_codebooks=hparams["num_codebooks"],
            
         )
