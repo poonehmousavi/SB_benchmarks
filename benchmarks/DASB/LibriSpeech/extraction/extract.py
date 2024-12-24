@@ -92,5 +92,7 @@ if __name__ == "__main__":
         save_folder = pl.Path(hparams["save_folder"])
         logger.info(f"Saving embeddings ...")
         tokens_extractor.save_pretrained_embeddings(
-            (save_folder / "embeddings").as_posix()
+            (save_folder / "embeddings").as_posix(),
+            hparams["num_codebooks"],
+            hparams["vocab_size"]
         )

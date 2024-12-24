@@ -197,7 +197,7 @@ class TokensExtractor:
 
         return [audio_pipeline]
 
-    def save_pretrained_embeddings(self, save_path, save_name="embeddings"):
+    def save_pretrained_embeddings(self, save_path, save_name="embeddings",num_codebooks=None, vocab_size=None):
         """
         Saves the pretrained embeddings of the tokenizer to a specified directory.
 
@@ -216,7 +216,7 @@ class TokensExtractor:
         save_path = pl.Path(save_path).absolute()
         save_path.mkdir(parents=True, exist_ok=True)
 
-        embeddings = self.tokenizer.get_pretrained_embeddings()
+        embeddings = self.tokenizer.get_pretrained_embeddings(num_codebooks,vocab_size)
         embeddings = embeddings.cpu().numpy()
         np.save(save_path / save_name, embeddings)
 
