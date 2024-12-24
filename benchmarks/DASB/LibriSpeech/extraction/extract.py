@@ -7,8 +7,6 @@ Authors
 
 import os
 import sys
-import torch
-import torchaudio
 import logging
 import pathlib as pl
 import speechbrain as sb
@@ -95,5 +93,4 @@ if __name__ == "__main__":
             (save_folder / "embeddings").as_posix(),
             vocab_size=hparams["vocab_size"],
             num_codebooks=hparams["num_codebooks"],
-           
         )

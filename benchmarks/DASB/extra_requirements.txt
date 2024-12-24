@@ -1,5 +1,6 @@
 beartype
 jsonlines
+kaldiio
 librosa>=0.9.2
 onnxruntime>=1.16.3
 scikit-learn
@@ -8,4 +9,3 @@ speechtokenizer>=0.1.2
 tensorboard
 tgt
 unidecode
-kaldiio

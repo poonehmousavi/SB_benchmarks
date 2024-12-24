@@ -175,8 +175,7 @@ def dataio_prepare(hparams, tokenizer):
     data_folder = hparams["data_folder"]
 
     train_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["train_csv"],
-        replacements={"data_root": data_folder},
+        csv_path=hparams["train_csv"], replacements={"data_root": data_folder},
     )
 
     if hparams["sorting"] == "ascending":
@@ -201,8 +200,7 @@ def dataio_prepare(hparams, tokenizer):
         )
 
     valid_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["valid_csv"],
-        replacements={"data_root": data_folder},
+        csv_path=hparams["valid_csv"], replacements={"data_root": data_folder},
     )
     valid_data = valid_data.filtered_sorted(sort_key="duration")
 
@@ -238,8 +236,7 @@ def dataio_prepare(hparams, tokenizer):
         sig = sb.dataio.dataio.read_audio(wav)
         info = torchaudio.info(wav)
         resampled = torchaudio.transforms.Resample(
-            info.sample_rate,
-            hparams["sample_rate"],
+            info.sample_rate, hparams["sample_rate"],
         )(sig)
         # resampled = resampled.unsqueeze(0)
         return resampled
@@ -264,8 +261,7 @@ def dataio_prepare(hparams, tokenizer):
 
     # 4. Set output:
     sb.dataio.dataset.set_output_keys(
-        datasets,
-        ["id", "sig", "wrd", "char_list", "tokens", "speech_tokens"],
+        datasets, ["id", "sig", "wrd", "char_list", "tokens", "speech_tokens"],
     )
 
     # 5. If Dynamic Batching is used, we instantiate the needed samplers.
@@ -361,10 +357,19 @@ if __name__ == "__main__":
         embs = tokens_loader.load_pretrained_embeddings(
             hparams["pretain_embeddings_folder"]
         )
-        if isinstance(hparams['num_codebooks'], int):
-            embs= embs[:hparams['num_codebooks']*hparams['vocab_size'],]
-        elif isinstance(hparams['num_codebooks'], list):
-            indices = [i for codebook_idx in hparams['num_codebooks'] for i in range(codebook_idx * hparams['vocab_size'], (codebook_idx + 1) * hparams['vocab_size'])]
+        if isinstance(hparams["num_codebooks"], int):
+            embs = embs[
+                : hparams["num_codebooks"] * hparams["vocab_size"],
+            ]
+        elif isinstance(hparams["num_codebooks"], list):
+            indices = [
+                i
+                for codebook_idx in hparams["num_codebooks"]
+                for i in range(
+                    codebook_idx * hparams["vocab_size"],
+                    (codebook_idx + 1) * hparams["vocab_size"],
+                )
+            ]
             indices = torch.tensor(indices, dtype=torch.long)
             embs = embs[indices]
         hparams["discrete_embedding_layer"].init_embedding(embs)
@@ -401,8 +406,7 @@ if __name__ == "__main__":
     from speechbrain.decoders.ctc import CTCBeamSearcher
 
     test_searcher = CTCBeamSearcher(
-        **hparams["test_beam_search"],
-        vocab_list=vocab_list,
+        **hparams["test_beam_search"], vocab_list=vocab_list,
     )
 
     train_dataloader_opts = hparams["train_dataloader_opts"]

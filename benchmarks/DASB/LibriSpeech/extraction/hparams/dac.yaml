@@ -30,9 +30,9 @@ id_key: id
 
 # Dataloader options
 dataloader_opts:
-   batch_size: !ref <batch_size>
-   shuffle: True
-   num_workers: !ref <num_workers>
+  batch_size: !ref <batch_size>
+  shuffle: True
+  num_workers: !ref <num_workers>
 
 ####################### Model parameters ###########################
 # Tokenizer parameters
@@ -52,10 +52,10 @@ encoder_dim: 1024
 save_embedding: False
 
 tokenizer: !new:model.tokenizer_interface.DACTokenizer
-   model_type: !ref <model_type>
-   model_bitrate: !ref <model_bitrate>
-   load_pretrained: True
-   tag: latest
+  model_type: !ref <model_type>
+  model_bitrate: !ref <model_bitrate>
+  load_pretrained: True
+  tag: latest
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

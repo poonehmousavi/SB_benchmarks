@@ -197,7 +197,13 @@ class TokensExtractor:
 
         return [audio_pipeline]
 
-    def save_pretrained_embeddings(self, save_path, save_name="embeddings",vocab_size=None,num_codebooks=None):
+    def save_pretrained_embeddings(
+        self,
+        save_path,
+        save_name="embeddings",
+        vocab_size=None,
+        num_codebooks=None,
+    ):
         """
         Saves the pretrained embeddings of the tokenizer to a specified directory.
 
@@ -216,7 +222,9 @@ class TokensExtractor:
         save_path = pl.Path(save_path).absolute()
         save_path.mkdir(parents=True, exist_ok=True)
 
-        embeddings = self.tokenizer.get_pretrained_embeddings(vocab_size,num_codebooks)
+        embeddings = self.tokenizer.get_pretrained_embeddings(
+            vocab_size, num_codebooks
+        )
         embeddings = embeddings.cpu().numpy()
         np.save(save_path / save_name, embeddings)
 
@@ -335,7 +343,10 @@ class TokensLoader:
                     )
                 tokens = tokens[:, :num_codebooks]
             elif isinstance(num_codebooks, list):
-                if not all(isinstance(idx, int) and 0 <= idx < tokens.size(-1) for idx in num_codebooks):
+                if not all(
+                    isinstance(idx, int) and 0 <= idx < tokens.size(-1)
+                    for idx in num_codebooks
+                ):
                     raise ValueError(
                         f"Invalid indices in num_codebooks list: {num_codebooks}. "
                         f"All indices must be integers within the range [0, {tokens.size(-1) - 1}]."

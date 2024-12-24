@@ -38,9 +38,7 @@ class BaseTokenizer(ABC):
 
     @abstractmethod
     @torch.no_grad()
-    def get_pretrained_embeddings(
-        self, vocab_size, num_codebooks, **kwargs
-    ):
+    def get_pretrained_embeddings(self, vocab_size, num_codebooks, **kwargs):
         """Get codebook embeddings."""
         pass
 
@@ -97,7 +95,7 @@ class DACTokenizer(DAC, BaseTokenizer):
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size=None, num_codebooks=None , **kwargs
+        self, vocab_size=None, num_codebooks=None, **kwargs
     ):
         toks = torch.arange(vocab_size).to(next(self.parameters()).device)
         toks = toks[:, None, None].expand(-1, num_codebooks, -1).clone()
@@ -136,7 +134,7 @@ class SpeechTokenizer(SpeechTokenizer_interface, BaseTokenizer):
 
     @torch.no_grad()
     def get_pretrained_embeddings(
-        self, vocab_size=None, num_codebooks=None , **kwargs
+        self, vocab_size=None, num_codebooks=None, **kwargs
     ):
         toks = torch.arange(vocab_size).to(next(self.parameters()).device)
         toks = toks[None, :, None].expand(num_codebooks, -1, -1).clone()
@@ -154,9 +152,11 @@ class DiscreteSSLTokenizer(DiscreteSSL, BaseTokenizer):
         BaseTokenizer.__init__(self)
 
     @torch.no_grad()
-    def sig_to_tokens(self, signal, lengths, num_codebooks=None,**kwargs):
+    def sig_to_tokens(self, signal, lengths, num_codebooks=None, **kwargs):
         self.eval()
-        tokens, _, _ = self.encode(signal, lengths, SSL_layers=num_codebooks,**kwargs)
+        tokens, _, _ = self.encode(
+            signal, lengths, SSL_layers=num_codebooks, **kwargs
+        )
         return tokens
 
     @torch.no_grad()
@@ -170,15 +170,10 @@ class DiscreteSSLTokenizer(DiscreteSSL, BaseTokenizer):
     ):
         embs = []
         for layer_num, vocabulary in zip(
-            self.ssl_layer_ids,
-            self.vocabularies,
+            self.ssl_layer_ids, self.vocabularies,
         ):
             if layer_num not in num_codebooks:
                 continue
-            embs.append(
-                torch.as_tensor(
-                    vocabulary, dtype=torch.float32
-                )
-            )
+            embs.append(torch.as_tensor(vocabulary, dtype=torch.float32))
         embs = torch.cat(embs)
         return embs

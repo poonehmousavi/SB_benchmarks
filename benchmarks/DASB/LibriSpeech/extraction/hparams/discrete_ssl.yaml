@@ -30,9 +30,9 @@ id_key: id
 
 # Dataloader options
 dataloader_opts:
-   batch_size: !ref <batch_size>
-   shuffle: True
-   num_workers: !ref <num_workers>
+  batch_size: !ref <batch_size>
+  shuffle: True
+  num_workers: !ref <num_workers>
 
 ### Configuration for  discrete SSL model
 # ssl_model_type: hubert, wavlm, wav2vec2
@@ -61,36 +61,36 @@ sample_rate: 16000
 encoder_dim: 1024
 
 ssl_model: !apply:speechbrain.utils.hparams.choice
-    value: !ref <ssl_model_type>
-    choices:
-        wavlm: !new:speechbrain.lobes.models.huggingface_transformers.wavlm.WavLM
-            source: !ref <ssl_hub>
-            output_norm: False
-            freeze: !ref <freeze_ssl>
-            freeze_feature_extractor: !ref <freeze_feature_extractor>
-            output_all_hiddens: True
-            save_path: !ref <ssl_folder>
-        hubert: !new:speechbrain.lobes.models.huggingface_transformers.hubert.HuBERT
-            source: !ref <ssl_hub>
-            output_norm: False
-            freeze: !ref <freeze_ssl>
-            freeze_feature_extractor: !ref <freeze_feature_extractor>
-            output_all_hiddens: True
-            save_path: !ref <ssl_folder>
-        wav2vec2: !new:speechbrain.lobes.models.huggingface_transformers.wav2vec2.Wav2Vec2
-            source: !ref <ssl_hub>
-            output_norm: False
-            freeze: !ref <freeze_ssl>
-            freeze_feature_extractor: !ref <freeze_feature_extractor>
-            output_all_hiddens: True
-            save_path: !ref <ssl_folder>
+  value: !ref <ssl_model_type>
+  choices:
+    wavlm: !new:speechbrain.lobes.models.huggingface_transformers.wavlm.WavLM
+      source: !ref <ssl_hub>
+      output_norm: False
+      freeze: !ref <freeze_ssl>
+      freeze_feature_extractor: !ref <freeze_feature_extractor>
+      output_all_hiddens: True
+      save_path: !ref <ssl_folder>
+    hubert: !new:speechbrain.lobes.models.huggingface_transformers.hubert.HuBERT
+      source: !ref <ssl_hub>
+      output_norm: False
+      freeze: !ref <freeze_ssl>
+      freeze_feature_extractor: !ref <freeze_feature_extractor>
+      output_all_hiddens: True
+      save_path: !ref <ssl_folder>
+    wav2vec2: !new:speechbrain.lobes.models.huggingface_transformers.wav2vec2.Wav2Vec2
+      source: !ref <ssl_hub>
+      output_norm: False
+      freeze: !ref <freeze_ssl>
+      freeze_feature_extractor: !ref <freeze_feature_extractor>
+      output_all_hiddens: True
+      save_path: !ref <ssl_folder>
 
 tokenizer: !new:model.tokenizer_interface.DiscreteSSLTokenizer
-   save_path: !ref <kmeans_cache_dir>
-   ssl_model: !ref <ssl_model>
-   vocoder_repo_id: !ref <vocoder_repo_id>
-   kmeans_dataset: !ref <kmeans_dataset>
-   num_clusters: !ref <vocab_size>
+  save_path: !ref <kmeans_cache_dir>
+  ssl_model: !ref <ssl_model>
+  vocoder_repo_id: !ref <vocoder_repo_id>
+  kmeans_dataset: !ref <kmeans_dataset>
+  num_clusters: !ref <vocab_size>
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

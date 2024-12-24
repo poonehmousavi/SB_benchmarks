@@ -30,9 +30,9 @@ id_key: id
 
 # Dataloader options
 dataloader_opts:
-   batch_size: !ref <batch_size>
-   shuffle: True
-   num_workers: !ref <num_workers>
+  batch_size: !ref <batch_size>
+  shuffle: True
+  num_workers: !ref <num_workers>
 
 vocab_size: 1024
 num_codebooks: 2
@@ -43,8 +43,8 @@ save_embedding: False
 
 # EnCodec model (see https://huggingface.co/docs/transformers/v4.31.0/en/model_doc/encodec)
 tokenizer: !new:model.tokenizer_interface.SpeechTokenizer
-   source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
-   save_path: !ref <save_folder>
+  source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
+  save_path: !ref <save_folder>
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>
