@@ -5,7 +5,7 @@
 # Decoder: CTC beam searcher and greedy searcher
 # Tokens: character
 # Training: Librispeech 960h
-# Authors: 
+# Authors:
 #     - Pooneh Mousavi 2024
 #     - Jarod Duret 2024
 # ############################################################################

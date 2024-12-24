@@ -6,8 +6,9 @@
 # At the end, the final performance is computed with the aggregate_results.py script that provides the average performance.
 #
 # Usage:
-# ./run_experiments.sh --hparams=hparams/MotorImagery/BNCI2014001/EEGNet.yaml --data_folder=eeg_data \
-# --output_folder=results/MotorImagery/BNCI2014001/EEGNet --nsbj=9 --nsess=2 --seed=1986 --nruns=2 --number_of_epochs=10
+# ./run_experiments.sh --hparams benchmarks/DASB/LibriSpeech/ASR/hparams/LSTM/train.yaml --data_folder LibriSpeech --cached_data_folder cache/ \
+# --output_folder results/LibriSpeech/ASR/encodec/LSTM --task ASR --dataset LibriSpeech --seed 1986 --nruns 2 --eval_metric WER  --tokens_folder LibriSpeech/extraction-emb/speech_tokenizer/save/librispeech/
+
 #
 # Authors:
 # - Pooneh Mousavi (2024)
@@ -75,13 +76,13 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-   
+
       --task)
       task="$2"
       shift
       shift
       ;;
-     
+
       --dataset)
       dataset="$2"
       shift
@@ -181,7 +182,7 @@ mkdir -p $cached_data_folder
 run_experiment() {
 
 python $dataset/$task/train.py $hparams  --cached_data_folder=$cached_data_folder --seed=$seed --data_folder=$data_folder --output_folder=$output_folder_exp \
-$additional_flags 
+$additional_flags
 
 }
 
