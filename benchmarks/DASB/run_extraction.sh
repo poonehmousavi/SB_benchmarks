@@ -49,13 +49,13 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
-      --tokenizer)
-      task="$2"
+    --tokenizer)
+      tokenizer="$2"
       shift
       shift
       ;;
 
-      --dataset)
+    --dataset)
       dataset="$2"
       shift
       shift
