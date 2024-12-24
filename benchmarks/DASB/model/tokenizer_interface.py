@@ -99,7 +99,7 @@ class DACTokenizer(DAC, BaseTokenizer):
     def get_pretrained_embeddings(
         self, vocab_size=None, num_codebooks=None , **kwargs
     ):
-        toks = torch.arange(vocab_size)
+        toks = torch.arange(vocab_size).to(next(self.parameters()).device)
         toks = toks[:, None, None].expand(-1, num_codebooks, -1).clone()
         self.eval()
         z_q, z_p, _ = self.quantizer.from_codes(toks)
