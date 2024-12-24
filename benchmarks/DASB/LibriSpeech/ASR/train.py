@@ -361,6 +361,12 @@ if __name__ == "__main__":
         embs = tokens_loader.load_pretrained_embeddings(
             hparams["pretain_embeddings_folder"]
         )
+        if isinstance(hparams['num_codebooks'], int):
+            embs= embs[:hparams['num_codebooks']*hparams['vocab_size'],]
+        elif isinstance(hparams['num_codebooks'], list):
+            indices = [i for codebook_idx in hparams['num_codebooks'] for i in range(codebook_idx * hparams['vocab_size'], (codebook_idx + 1) * hparams['vocab_size'])]
+            indices = torch.tensor(indices, dtype=torch.long)
+            embs = embs[indices]
         hparams["discrete_embedding_layer"].init_embedding(embs)
 
     # Log number of parameters/buffers
