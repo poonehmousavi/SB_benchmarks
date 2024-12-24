@@ -6,6 +6,7 @@ At test time, beamsearch is used with an optional external language model.
 
 Authors
  * Pooneh Mousavi 2024
+ * Jarod Duret 2024
 """
 
 import os
@@ -361,6 +362,8 @@ if __name__ == "__main__":
             embs = embs[
                 : hparams["num_codebooks"] * hparams["vocab_size"],
             ]
+        # For discrete SSL, num_codebooks is a list used to determine which layers to use.
+        # It is not sequential and can be, for example, [0, 1] or [1, 4].
         elif isinstance(hparams["num_codebooks"], list):
             indices = [
                 i

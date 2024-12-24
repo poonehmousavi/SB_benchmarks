@@ -5,13 +5,16 @@
 # Decoder: CTC beam searcher and greedy searcher
 # Tokens: character
 # Training: Librispeech 960h
-# Authors: Pooneh Mousavi 2024
+# Authors: 
+#     - Pooneh Mousavi 2024
+#     - Jarod Duret 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/enocdec/LSTM/<seed>
+run_name: !PLACEHOLDER
+output_folder: !ref results/LSTM/<run_name>/<seed>
 output_wer_folder: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -19,24 +22,27 @@ train_log: !ref <output_folder>/train_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
+cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
 # If RIRS_NOISES dir exists in /localscratch/xxx_corpus/RIRS_NOISES
 # then data_folder_rirs should be /localscratch/xxx_corpus
 # otherwise the dataset will automatically be downloaded
 # data_folder_rirs: !ref <data_folder>
-train_splits: ["train-clean-100", "train-clean-360", "train-other-500"]
+train_splits: ["train-clean-100"] #["train-clean-100", "train-clean-360", "train-other-500"]
 dev_splits: ["dev-clean"]
 test_splits: ["dev-clean", "test-clean", "test-other"]
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
+train_csv: !ref <cached_data_folder>/train.csv
+valid_csv: !ref <cached_data_folder>/dev-clean.csv
 test_csv:
-   - !ref <output_folder>/dev-clean.csv
-   - !ref <output_folder>/test-clean.csv
+   - !ref <cached_data_folder>/dev-clean.csv
+   - !ref <cached_data_folder>/test-clean.csv
 
+tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
+pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
-batch_size: 4 # This works for 2x GPUs with 32GB
+batch_size: 4
 test_batch_size: 1
 grad_accumulation_factor: 2
 max_grad_norm: 5.0
@@ -53,10 +59,6 @@ weight_decay: 0.0005
 
 
 # Training parameters
-# To make Transformers converge, the global bath size should be large enough.
-# The global batch size is max_batch_len * n_gpus * gradient_accumulation.
-# Empirically, we used 850 * 8 A40 45G GPUs * 2 or 1700 * 4 A100 80G * 2.
-# Please, set your parameters accordingly.
 dynamic_batching: True
 max_batch_length_train: 850
 max_batch_len_val: 100
@@ -94,20 +96,16 @@ test_dataloader_opts:
 
 ####################### Model parameters ###########################
 # Tokenizer parameters
-# sample_rate: [24000, 24000, 24000, 24000]
-# vocab_size: [1024, 1024, 1024, 1024]
-# bandwidth: [1.5, 3.0, 6.0, 12.0, 24.0]
-# num_codebooks: [2, 4, 8, 16, 32]
+# These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
 vocab_size: 1024
-# bandwidth: 1.5
 num_codebooks: 2
 sample_rate: 24000
+
 # Feature parameters
 encoder_dim: 1024
-# If set to True, the encoder_dim should be set to the dim of the tokenizer. For encodec it is 128.
+# If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
-
 
 # LSTM
 activation: !name:torch.nn.Sigmoid
@@ -131,15 +129,8 @@ token_prune_min_logp: -1.2
 prune_history: False
 
 ############################## models ################################
-# EnCodec model (see https://huggingface.co/docs/transformers/v4.31.0/en/model_doc/encodec)
-# tokenizer: !new:model.tokenizer_interface.EncodecTokenizer
-#    source: facebook/encodec_24khz  # Only the 24kHz version supports mono audio
-#    save_path: !ref <save_folder>
-#    sample_rate: !ref <sample_rate>
-#    bandwidth: !ref <bandwidth>
-#    flat_embeddings: False
-#    freeze: True
-#    renorm_embeddings: False
+tokens_loader: !new:utils.tokens.TokensLoader
+   data_path: !ref <tokens_folder>
 
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
    num_codebooks: !ref <num_codebooks>
@@ -153,15 +144,12 @@ attention_mlp: !new:model.custom_model.AttentionMLP
    input_dim: !ref <encoder_dim>
    hidden_dim: !ref <encoder_dim>
 
-encoder: !new:speechbrain.nnet.RNN.LSTM
-   input_shape: [Null, Null, !ref <encoder_dim>]
-   num_layers: !ref <dnn_layers>
-   bidirectional: True
-   dropout: !ref <dropout>
-   hidden_size: !ref <dnn_neurons>
+encoder: !new:speechbrain.lobes.models.ContextNet.ContextNet
+   input_shape: [null, null, !ref <encoder_dim>]
+   strides: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 ctc_lin: !new:speechbrain.nnet.linear.Linear
-   input_size: 2048
+   input_size: 640
    n_neurons: !ref <output_neurons>
 
 modules:
@@ -198,10 +186,6 @@ scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
    improvement_threshold: 0.0025
    annealing_factor: 0.8
    patient: 0
-# scheduler: !new:speechbrain.nnet.schedulers.LinearNoamScheduler
-#    lr_initial: !ref <lr_model>
-#    n_warmup_steps: 7500
-#    n_keep_steps: 36000
 
 model_opt_class: !name:torch.optim.AdamW
    lr: !ref <lr_model>

@@ -5,7 +5,9 @@
 # Decoder: CTC beam searcher and greedy searcher
 # Tokens: character
 # Training: Librispeech 960h
-# Authors: Pooneh Mousavi 2024
+# Authors: 
+#     - Pooneh Mousavi 2024
+#     - Jarod Duret 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
@@ -20,6 +22,7 @@ train_log: !ref <output_folder>/train_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
+cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
 # If RIRS_NOISES dir exists in /localscratch/xxx_corpus/RIRS_NOISES
 # then data_folder_rirs should be /localscratch/xxx_corpus
 # otherwise the dataset will automatically be downloaded
@@ -28,15 +31,14 @@ train_splits: ["train-clean-100"] #["train-clean-100", "train-clean-360", "train
 dev_splits: ["dev-clean"]
 test_splits: ["dev-clean", "test-clean", "test-other"]
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
+train_csv: !ref <cached_data_folder>/train.csv
+valid_csv: !ref <cached_data_folder>/dev-clean.csv
 test_csv:
-   - !ref <output_folder>/dev-clean.csv
-   - !ref <output_folder>/test-clean.csv
+   - !ref <cached_data_folder>/dev-clean.csv
+   - !ref <cached_data_folder>/test-clean.csv
 
-tokens_folder: !PLACEHOLDER
-pretain_embeddings_folder: !PLACEHOLDER # Optional
-
+tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
+pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
@@ -94,20 +96,16 @@ test_dataloader_opts:
 
 ####################### Model parameters ###########################
 # Tokenizer parameters
-# sample_rate: [24000, 24000, 24000, 24000]
-# vocab_size: [1024, 1024, 1024, 1024]
-# bandwidth: [1.5, 3.0, 6.0, 12.0, 24.0]
-# num_codebooks: [2, 4, 8, 16, 32]
+# These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
 vocab_size: 1024
-# bandwidth: 1.5
 num_codebooks: 2
 sample_rate: 24000
+
 # Feature parameters
 encoder_dim: 1024
-# If set to True, the encoder_dim should be set to the dim of the tokenizer. For encodec it is 128.
+# If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
-
 
 # LSTM
 activation: !name:torch.nn.Sigmoid
@@ -191,10 +189,6 @@ scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
    improvement_threshold: 0.0025
    annealing_factor: 0.8
    patient: 0
-# scheduler: !new:speechbrain.nnet.schedulers.LinearNoamScheduler
-#    lr_initial: !ref <lr_model>
-#    n_warmup_steps: 7500
-#    n_keep_steps: 36000
 
 model_opt_class: !name:torch.optim.AdamW
    lr: !ref <lr_model>
