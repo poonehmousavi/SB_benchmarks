@@ -299,9 +299,10 @@ class TokensLoader:
         ---------
         utt_id : str
             The utterance ID to retrieve tokens for.
-        num_codebooks : int, optional
-            The number of codebooks to retrieve from the tokens. If specified, the tokens will be truncated
-            to include only the first `num_codebooks` codebooks. If not specified, all codebooks are returned.
+        num_codebooks : int or list, optional
+            The number of codebooks to retrieve from the tokens. If specified as an int, the tokens
+            will be truncated to include only the first `num_codebooks` codebooks. If specified as a list,
+            the tokens will include only the codebooks at the specified indices. If not specified, all codebooks are returned.
 
         Returns
         -------
@@ -322,16 +323,26 @@ class TokensLoader:
         tokens = torch.from_numpy(tokens).long()
 
         if num_codebooks is not None:
-            if not isinstance(num_codebooks, int) or num_codebooks <= 0:
-                raise ValueError(
-                    f"Invalid num_codebooks value: {num_codebooks}. It must be a positive integer."
-                )
-            if num_codebooks > tokens.size(-1):
-                raise ValueError(
-                    f"Invalid number of codebooks: {num_codebooks}. "
-                    f"Available codebooks: {tokens.size(-1)}."
-                )
-            tokens = tokens[:, :num_codebooks]
+            if isinstance(num_codebooks, int):
+                if num_codebooks <= 0:
+                    raise ValueError(
+                        f"Invalid num_codebooks value: {num_codebooks}. It must be a positive integer."
+                    )
+                if num_codebooks > tokens.size(-1):
+                    raise ValueError(
+                        f"Invalid number of codebooks: {num_codebooks}. "
+                        f"Available codebooks: {tokens.size(-1)}."
+                    )
+                tokens = tokens[:, :num_codebooks]
+            elif isinstance(num_codebooks, list):
+                if not all(isinstance(idx, int) and 0 <= idx < tokens.size(-1) for idx in num_codebooks):
+                    raise ValueError(
+                        f"Invalid indices in num_codebooks list: {num_codebooks}. "
+                        f"All indices must be integers within the range [0, {tokens.size(-1) - 1}]."
+                    )
+                tokens = tokens[:, num_codebooks]
+            else:
+                raise ValueError("num_codebooks must be an int or a list.")
 
         return tokens
 
