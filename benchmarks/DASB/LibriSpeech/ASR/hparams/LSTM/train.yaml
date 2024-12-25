@@ -42,7 +42,8 @@ pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, th
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
-batch_size: 4
+batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
+batch_size: !ref 2 ** <batch_size_exponent>
 test_batch_size: 1
 grad_accumulation_factor: 2
 max_grad_norm: 5.0
@@ -54,7 +55,7 @@ valid_search_interval: 1
 avg_checkpoints: 10 # Number of checkpoints to average for evaluation
 cache_size: 1.e+10
 
-lr_model: 0.001
+lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
 weight_decay: 0.0005
 
 
@@ -109,8 +110,7 @@ freeze_embedding: False
 
 # LSTM
 activation: !name:torch.nn.Sigmoid
-dnn_layers: 2
-dnn_neurons: 1024
+dnn_layers: 2 #  @orion_step1: --dnn_layers~"uniform(1, 4,discrete=True)"dnn_neurons: 1024
 dropout: 0.2
 output_neurons: 31
 
