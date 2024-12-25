@@ -45,16 +45,16 @@
 
 # Initialize variables
 exp_name="hopt"
-output_folder=""
+hparams=""
 data_folder=""
 cached_data_folder=""
+output_folder=""
 task=""
 dataset=""
-hparams=""
+seed=1986
 nruns=""
 nruns_eval=10
 eval_metric="acc"
-seed=1986
 config_file="orion/hparams_tpe.yaml"
 mne_dir=""
 orion_db_address=""
@@ -68,16 +68,16 @@ print_argument_descriptions() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  --exp_name Name                       Name that Orion gives to the experiment"
-    echo "  --output_folder output_path           Output folder were the results will be stored"
+    echo "  --hparms hparam_file                  YAML file containing the hparam to optimize. The hyperparameters decorated with @orion_step1 or @orion_step1 in the YAML file will be used"
     echo "  --data_folder data_path               Folder were the data are stored. If not available, they will be downloaded there."
     echo "  --cached_data_folder path [Optional]  Folder were the data in pkl format will be cached."
-    echo "  --task task                       downstream task"
-    echo "  --dataset dataset                 dataset"
-    echo "  --hparms hparam_file                  YAML file containing the hparam to optimize. The hyperparameters decorated with @orion_step1 or @orion_step1 in the YAML file will be used"
+    echo "  --output_folder output_path           Output folder were the results will be stored"
+    echo "  --task task                           downstream task"
+    echo "  --dataset dataset                     dataset"
+    echo "  --seed random_seed [Optional]         Seed (random if not specified)"
     echo "  --nruns num_runs                      Number of runs for each hparam selection."
     echo "  --nruns_eval num_runs                 Number of runs for the final evaluation  (with best hparams) on the test set"
     echo "  --eval_metric metric [Optional]       Evaluation metric description. Default:acc"
-    echo "  --seed random_seed [Optional]         Seed (random if not specified)"
     echo "  --config_file config_file [Optional]  Orion config file. Default: hparams/orion/hparams_tpe.yaml"
     echo "  --mne_dir mne_dir [Optional]          MNE directory. Need it different from your home (see notes on MNE in README.md)"
     echo "  --orion_db_address [Optional]         Path of the database where orion will store hparams and performance"
@@ -99,8 +99,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
-    --output_folder)
-      output_folder="$2"
+    --hparams)
+      hparams="$2"
       shift
       shift
       ;;
@@ -111,14 +111,14 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
-    --hparams)
-      hparams="$2"
+    --cached_data_folder)
+      cached_data_folder="$2"
       shift
       shift
       ;;
 
-    --cached_data_folder)
-      cached_data_folder="$2"
+    --output_folder)
+      output_folder="$2"
       shift
       shift
       ;;
@@ -153,14 +153,11 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
-
     --eval_metric)
       eval_metric="$2"
       shift
       shift
       ;;
-
-
 
     --config_file)
       config_file="$2"
