@@ -5,8 +5,7 @@
 ###########################################################
 
 # Description:
-# This script facilitates hyperparameter tuning for a given EEG model and dataset using Orion.
-# It supports leave-one-subject-out and/or leave-one-session-out training strategies.
+# This script facilitates hyperparameter tuning for a given audio tokenizer,  dowsnteram model and dataset using Orion.
 
 # Usage:
 # ./run_hparam_optimization.sh --exp_name 'EEGNet_BNCI2014001_hopt' \
@@ -21,8 +20,6 @@
 #
 # Optimization Steps:
 # The script supports multiple hyperparameter optimization steps.
-# We found it convenient to first optimize training and model hyperparameters,
-# and then optimize data augmentation hyperparameters in a separate step.
 
 # Script Workflow:
 # 1. Search for the orion flags in the specified hparam file.
@@ -352,7 +349,7 @@ while [ -n "$opt_flags" ]; do
     orion_hunt_command="orion hunt -n $exp_name_step -c $config_file --exp-max-trials $exp_max_trials \
     	./run_experiments.sh --hparams $hparams_step --data_folder $data_folder --cached_data_folder $cached_data_folder \
     	--output_folder $output_folder_step/exp   --task $task   --dataset $dataset  --seed $seed --nruns $nruns \
-    	--eval_metric $eval_metric --eval_set dev  --rnd_dir $store_all $additional_flags"
+    	--eval_metric $eval_metric --eval_set dev  --rnd_dir $store_all --testing False $additional_flags"
 
 
     # Appending the optimization flags
@@ -414,6 +411,6 @@ scp $best_yaml_file $final_yaml_file
 ./run_experiments.sh --hparams $final_yaml_file --data_folder $data_folder  --cached_data_folder $cached_data_folder \
   --output_folder $output_folder/best --task $task   --dataset $dataset  --seed $seed\
   --nruns $nruns_eval --eval_metric $eval_metric --eval_set test \
-  --rnd_dir $store_all $additional_flags
+  --rnd_dir $store_all --testing False $additional_flags
 
 echo "The test performance with best hparams is available at  $output_folder/best"

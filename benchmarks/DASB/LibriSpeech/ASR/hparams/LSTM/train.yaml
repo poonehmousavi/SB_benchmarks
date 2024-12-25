@@ -18,7 +18,7 @@ output_folder: !ref results/LSTM/<run_name>/<seed>
 output_wer_folder: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
-
+testing: True # If set to True, the test evlaution is done, otherwise skipped.
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech

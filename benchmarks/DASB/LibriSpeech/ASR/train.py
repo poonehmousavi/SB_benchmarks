@@ -433,16 +433,17 @@ if __name__ == "__main__":
         valid_loader_kwargs=hparams["valid_dataloader_opts"],
     )
 
-    # Testing
-    if not os.path.exists(hparams["output_wer_folder"]):
-        os.makedirs(hparams["output_wer_folder"])
+    if hparams["testing"]:
+        # Testing
+        if not os.path.exists(hparams["output_wer_folder"]):
+            os.makedirs(hparams["output_wer_folder"])
 
-    for k in test_datasets.keys():  # keys are test_clean, test_other etc
-        asr_brain.hparams.output_wer_folder = os.path.join(
-            hparams["output_wer_folder"], f"wer_{k}.txt"
-        )
-        asr_brain.evaluate(
-            test_datasets[k],
-            test_loader_kwargs=hparams["test_dataloader_opts"],
-            min_key="WER",
-        )
+        for k in test_datasets.keys():  # keys are test_clean, test_other etc
+            asr_brain.hparams.output_wer_folder = os.path.join(
+                hparams["output_wer_folder"], f"wer_{k}.txt"
+            )
+            asr_brain.evaluate(
+                test_datasets[k],
+                test_loader_kwargs=hparams["test_dataloader_opts"],
+                min_key="WER",
+            )
