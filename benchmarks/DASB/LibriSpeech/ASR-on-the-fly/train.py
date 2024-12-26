@@ -10,6 +10,7 @@ Authors
 
 import os
 import sys
+import time
 import torch
 import torchaudio
 import logging
@@ -423,6 +424,8 @@ if __name__ == "__main__":
 
     if valid_bsampler is not None:
         valid_dataloader_opts = {"batch_sampler": valid_bsampler}
+    # Measure time
+    start_time = time.time()  # Start the timer
 
     # Training
     asr_brain.fit(
@@ -433,6 +436,12 @@ if __name__ == "__main__":
         valid_loader_kwargs=hparams["valid_dataloader_opts"],
     )
 
+    end_time = time.time()  # End the timer
+    # Calculate elapsed time
+    elapsed_time = end_time - start_time
+    hparams["train_logger"].log_stats(
+        stats_meta={f"Model execution time: {elapsed_time:.6f} seconds"},
+    )
     # Testing
     if not os.path.exists(hparams["output_wer_folder"]):
         os.makedirs(hparams["output_wer_folder"])
