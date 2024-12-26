@@ -439,9 +439,10 @@ if __name__ == "__main__":
     end_time = time.time()  # End the timer
     # Calculate elapsed time
     elapsed_time = end_time - start_time
-    hparams["train_logger"].log_stats(
-        stats_meta={f"Model execution time: {elapsed_time:.6f} seconds"},
-    )
+    logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
+    # hparams["train_logger"].log_stats(
+    #     stats_meta={f"Model execution time: {elapsed_time:.6f} seconds"},
+    # )
     # Testing
     if not os.path.exists(hparams["output_wer_folder"]):
         os.makedirs(hparams["output_wer_folder"])
