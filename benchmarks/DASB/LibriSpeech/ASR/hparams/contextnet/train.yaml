@@ -18,7 +18,7 @@ output_folder: !ref results/LSTM/<run_name>/<seed>
 output_wer_folder: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
-
+testing: True # If set to True, the test evlaution is done, otherwise skipped.
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
@@ -42,7 +42,8 @@ pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, th
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
-batch_size: 4
+batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
+batch_size: !ref 2 ** <batch_size_exponent>
 test_batch_size: 1
 grad_accumulation_factor: 2
 max_grad_norm: 5.0
@@ -107,11 +108,8 @@ encoder_dim: 1024
 pretrain_embeddings: False
 freeze_embedding: False
 
-# LSTM
-activation: !name:torch.nn.Sigmoid
-dnn_layers: 2
-dnn_neurons: 1024
-dropout: 0.2
+# Contextnet
+
 output_neurons: 31
 
 # BPE parameters

@@ -41,7 +41,7 @@ tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are sav
 pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
 
 ####################### Training Parameters ####################################
-number_of_epochs: 20 # @orion_step1: --number_of_epochs~"fidelity(5, 20, base=4)"
+number_of_epochs: 20
 batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
 batch_size: !ref 2 ** <batch_size_exponent>
 test_batch_size: 1
