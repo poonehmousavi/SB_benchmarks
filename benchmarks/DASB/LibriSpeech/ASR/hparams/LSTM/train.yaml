@@ -110,7 +110,8 @@ freeze_embedding: False
 
 # LSTM
 activation: !name:torch.nn.Sigmoid
-dnn_layers: 2 #  @orion_step1: --dnn_layers~"uniform(1, 4,discrete=True)"dnn_neurons: 1024
+dnn_layers: 2 #  @orion_step1: --dnn_layers~"uniform(1, 4,discrete=True)"
+dnn_neurons: 1024
 dropout: 0.2
 output_neurons: 31
 
