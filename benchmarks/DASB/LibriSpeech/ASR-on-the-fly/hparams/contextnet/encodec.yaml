@@ -110,7 +110,6 @@ freeze_embedding: False
 output_neurons: 31
 
 # BPE parameters
-# BPE parameters
 token_type: char  # ["unigram", "bpe", "char"]
 character_coverage: 1.0
 blank_index: 0

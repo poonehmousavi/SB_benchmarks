@@ -4,7 +4,7 @@
 # Script to extracts and save tokens from dataset.
 #
 # Usage:
-# ./ $run_extraction.sh  --data_folder LibriSpeech --output_folder results/LibriSpeech/ASR/encodec/LSTM --tokenizer encidec --dataset LibriSpeech
+# ./ $run_extraction.sh  --data_folder LibriSpeech --output_folder results/LibriSpeech/ASR/encodec/LSTM --tokenizer encodec --dataset LibriSpeech
 
 # Authors:
 # - Pooneh Mousavi (2024)

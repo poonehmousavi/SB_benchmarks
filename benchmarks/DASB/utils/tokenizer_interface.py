@@ -21,25 +21,101 @@ from speechbrain.lobes.models.discrete.speechtokenizer_interface import (
 
 
 class BaseTokenizer(ABC):
+    """
+    Abstract base class for tokenizers that encode signals into discrete tokens
+    and decode tokens back into signals.
+
+    This class defines the essential methods that any tokenizer must implement,
+    including encoding, decoding, and retrieving pretrained embeddings.
+
+    Naming Convenstion
+    ------------------
+    B : int
+        Batch size.
+    T : int
+        Sequence length in the time domain.
+    N : int
+        Sequence length in the token domain.
+    C : int
+        Vocabulary size, assuming each codebook has the same number of tokens.
+    K : int
+        Number of codebooks.
+    """
+
     def __init__(self):
+        """
+        Initialize the BaseTokenizer.
+
+        This is a base constructor that other tokenizers can extend.
+        """
         super().__init__()
 
     @abstractmethod
     @torch.no_grad()
     def sig_to_tokens(self, signal, lengths, num_codebooks=None, **kwargs):
-        """Encode signal into tokens."""
+        """
+        Encode a signal into discrete tokens.
+
+        Arguments
+        ---------
+        signal : torch.Tensor
+            Input signal with shape [B, T].
+        lengths : torch.Tensor
+            Lengths of each sequence in the batch, with shape [B].
+        num_codebooks : int, optional
+            Number of codebooks to use for encoding. If None, all codebooks are used (default: None).
+            If specified as an int, the tokens will be truncated to include only the first `num_codebooks` codebooks. If specified as a list,
+            the tokens will include only the codebooks at the specified indices.
+        **kwargs : dict
+            Additional arguments for the tokenizer.
+
+        Returns
+        -------
+        tokens : torch.Tensor
+            Discretized tokens with shape [B, N, K].
+        """
         pass
 
     @abstractmethod
     @torch.no_grad()
     def tokens_to_sig(self, tokens, **kwargs):
-        """Decode tokens to signal."""
+        """
+        Decode discrete tokens back into a signal.
+
+        Arguments
+        ---------
+        tokens : torch.Tensor
+            Input tokens with shape [B, N, K].
+        **kwargs : dict
+            Additional arguments for the tokenizer.
+
+        Returns
+        -------
+        signal : torch.Tensor
+            Reconstructed signal with shape [B, T].
+        """
         pass
 
     @abstractmethod
     @torch.no_grad()
     def get_pretrained_embeddings(self, vocab_size, num_codebooks, **kwargs):
-        """Get codebook embeddings."""
+        """
+        Retrieve pretrained embeddings for the tokenizer.
+
+        Arguments
+        ---------
+        vocab_size : int
+            Number of tokens in each codebook.
+        num_codebooks : int
+            Number of codebooks.
+        **kwargs : dict
+            Additional arguments for embedding retrieval.
+
+        Returns
+        -------
+        embeddings : torch.Tensor
+            Pretrained embedding weights with shape [K, C, H], where H is the embedding dimension.
+        """
         pass
 
 

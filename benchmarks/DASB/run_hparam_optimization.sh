@@ -8,16 +8,20 @@
 # This script facilitates hyperparameter tuning for a given audio tokenizer,  dowsnteram model and dataset using Orion.
 
 # Usage:
-# ./run_hparam_optimization.sh --exp_name 'EEGNet_BNCI2014001_hopt' \
-#                             --output_folder results/MotorImagery/BNCI2014001/EEGNet/hopt \
-#                             --data_folder eeg_data/ \
-#                             --hparams hparams/MotorImagery/BNCI2014001/EEGNet.yaml \
-#                             --nruns 1 --nruns_eval 10 \
-#                             --eval_metric acc \
-#                             --exp_max_trials 50 \
-#                             --store_all True \
-#                             --device 'cpu'
-#
+# ./run_hparam_optimization.sh    --exp_name 'ASR-encodec-LSTM_hopt' \
+  #                               --hparams LibriSpeech/ASR/hparams/LSTM/train.yaml \
+  #                               --data_folder path/LibriSpeech \
+  #                               --cached_data_folder path/cache/ \
+  #                               --output_folder results/LibriSpeech/ASR/encodec/LSTM \
+  #                               --task ASR \
+  #                               --dataset LibriSpeech \
+  #                               --seed 1986 \
+  #                               --nruns 1 \
+  #                               --nruns_eval 5 \
+  #                               --eval_metric WER \
+  #                               --exp_max_trials 50 \
+  #                               --tokens_folder results/LibriSpeech/extraction-emb/encodec/save/librispeech/ \
+  #                               --run_name encodec
 # Optimization Steps:
 # The script supports multiple hyperparameter optimization steps.
 
