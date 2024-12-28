@@ -25,18 +25,31 @@ For detailed information, refer to [paper](https://arxiv.org/pdf/2406.14294):
 
 # Table of Contents
 
-- [Table of Contents](#table-of-contents)
-- [Installation](#-installation)
-- [Discrete Audio Encoder](#-Discrete-Audio-Encoder)
-- [Datasets and Recipes](#-Datasets-and-Recipes)
-- [Training Scenarios](#-Training-Scenarios)
-  - [On-the-Fly Token Extraction](#-On-the-Fly-Token-Extraction)
-  - [Offline-Token-Extraction](#-Offline-Token-Extraction)
-- [‍Incorporating Your Audio Tokenizer](#-Incorporating-Your-Audio-Tokenizer)
-- [Hyperparameter Tuning](#-Hyperparameter-Tuning)
-- [Results](#-results)
-- [Contact](#-contact)
-- [Citing](#-citing)
+Here’s the updated **Table of Contents** for your GitHub README with corrections and better alignment:
+
+---
+
+# 📑 Table of Contents
+
+- [DASB - Discrete Audio and Speech Benchmark](#dasb---discrete-audio-and-speech-benchmark)
+- [🛠️ Installation](#-installation)
+- [🎌 Discrete Audio Encoder](#-discrete-audio-encoder)
+- [⚡ Datasets and Recipes](#-datasets-and-recipes)
+- [📖 Training Scenarios](#-training-scenarios)
+  - [On-the-Fly Token Extraction](#on-the-fly-token-extraction)
+  - [Offline Token Extraction](#offline-token-extraction)
+- [🎛️ Hyperparameter Tuning](#-hyperparameter-tuning)
+- [📝 Incorporating Your Audio Tokenizer](#-incorporating-your-audio-tokenizer)
+- [📈 Results](#-results)
+  - [Ranking](#ranking)
+  - [Benchmarking Results for Discriminative Tasks](#benchmarking-results-for-discriminative-tasks)
+  - [Benchmarking Results for Generative Tasks](#benchmarking-results-for-generative-tasks)
+- [📧 Contact](#-contact)
+- [📖 Citing](#-citing)
+
+---
+
+This structure provides a clear and logical flow, ensuring users can easily navigate the document. Each major section is linked appropriately, with sub-sections for detailed content. Let me know if additional adjustments are required!
 
 # 🛠️ Installation
 
@@ -103,7 +116,7 @@ To set up SpeechBrain-DASB, follow these steps:
 
 We offer two different training scenarios: **on-the-fly token extraction** and **offline token extraction**.
 
-## 1. On-the-Fly Token Extraction
+## On-the-Fly Token Extraction
 In this scenario, audio tokens are extracted dynamically during training. To enhance efficiency, we use a caching mechanism where tokens are saved in memory during the first epoch and retrieved for subsequent epochs. However, this approach has some limitations:
 - It works best when the dataset is small, the bitrate is low, and batching is sorted (not random).
 - It is unsuitable when data augmentation is required.
@@ -121,9 +134,8 @@ python LibriSpeech/ASR-on-the-fly/train.py LibriSpeech/ASR-on-the-fly/hparams/LS
 
 > **Note:** On-the-fly extraction can be time-consuming, which is why we also provide an alternative approach: **offline token extraction**.
 
----
 
-## 2. Offline Token Extraction
+## Offline Token Extraction
 In this scenario, all tokens are pre-extracted in a separate recipe. We recommend using the highest number of codebooks available for token extraction and then choosing the desired settings during training.
 
 ### Token Extraction Command
@@ -147,7 +159,6 @@ bash run_experiments.sh --hparams benchmarks/DASB/LibriSpeech/ASR/hparams/LSTM/t
 This workflow ensures flexibility, efficiency, and reproducibility for both training scenarios. Adapt the recipes as needed for your specific requirements!
 
 Here's a polished and formatted version for clarity, suitable for a README or documentation:
-
 
 
 # 🎛️ Hyperparameter Tuning
