@@ -38,7 +38,7 @@ Here’s the updated **Table of Contents** for your GitHub README with correctio
 - [📖 Training Scenarios](#-training-scenarios)
   - [On-the-Fly Token Extraction](#on-the-fly-token-extraction)
   - [Offline Token Extraction](#offline-token-extraction)
-- [🎛️ Hyperparameter Tuning](#-hyperparameter-tuning)
+- [🎛️ Hyperparameter Tuning](#hyperparameter-tuning)
 - [📝 Incorporating Your Audio Tokenizer](#-incorporating-your-audio-tokenizer)
 - [📈 Results](#-results)
   - [Ranking](#ranking)
