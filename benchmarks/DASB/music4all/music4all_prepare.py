@@ -207,7 +207,7 @@ def create_csv(ids, audio_folder, output_json):
                 duration = info.num_frames / info.sample_rate
                 json_dict[file_id] = {
                     "uttid": file_id,
-                    "wav": os.path.join("$DATA_ROOT", WAVS, f"{file_id}.mp3"),
+                    "wav": audio_path,
                     "duration": duration
                 }
             except Exception as e:
