@@ -57,7 +57,6 @@ if __name__ == "__main__":
     data_folder = hparams["data_folder"]
     datasets = []
     for split in ["train", "valid","test"]:
-        train_annotation
         json_path = hparams[f"{split}_annotation"]
         name = pl.Path(json_path).stem
         dataset = sb.dataio.dataset.DynamicItemDataset.from_json(
