@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     # Data preparation, to be run on only one process.
     if not hparams["skip_prep"]:
-        sb.utils.distributed.run_on_main(
+        run_on_main(
             prepare_data,
             kwargs={
                 "data_original": hparams["data_folder"],
@@ -50,13 +50,13 @@ if __name__ == "__main__":
                 "different_speakers": hparams["different_speakers"],
                 "test_spk_id": hparams["test_spk_id"],
                 "seed": hparams["seed"],
-            }
+            },
         )
 
     tokens_extractor = hparams["tokens_extractor"]
     data_folder = hparams["data_folder"]
     datasets = []
-    for split in ["train", "valid","test"]:
+    for split in ["train", "valid", "test"]:
         json_path = hparams[f"{split}_annotation"]
         name = pl.Path(json_path).stem
         dataset = sb.dataio.dataset.DynamicItemDataset.from_json(
