@@ -22,6 +22,7 @@ class EmoIdBrain(sb.Brain):
     def compute_forward(self, batch, stage):
         """Computation pipeline based on a encoder + emotion classifier."""
         batch = batch.to(self.device)
+        wavs, wav_lens = batch.sig
         in_toks, _ = batch.speech_tokens
 
         in_embs = self.modules.discrete_embedding_layer(
@@ -162,7 +163,22 @@ def dataio_prep(hparams):
         Contains two keys, "train" and "valid" that correspond
         to the appropriate DynamicItemDataset object.
     """
-    # 1. Define tokens pipeline:
+    
+    # Define audio pipeline
+    @sb.utils.data_pipeline.takes("wav")
+    @sb.utils.data_pipeline.provides("sig")
+    def audio_pipeline(wav):
+        """Load the signal, and pass it and its length to the corruption class.
+        This is done on the CPU in the `collate_fn`."""
+        sig = sb.dataio.dataio.read_audio(wav)
+        info = torchaudio.info(wav)
+        resampled = torchaudio.transforms.Resample(
+            info.sample_rate, hparams["sample_rate"],
+        )(sig)
+        #         resampled = resampled.unsqueeze(0)
+        return resampled
+
+    #  Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
 
@@ -196,8 +212,8 @@ def dataio_prep(hparams):
         datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_json(
             json_path=data_info[dataset],
             replacements={"data_root": hparams["data_folder"]},
-            dynamic_items=[tokens_pipeline, label_pipeline],
-            output_keys=["id", "speech_tokens", "emo_encoded"],
+            dynamic_items=[audio_pipeline, tokens_pipeline, label_pipeline],
+            output_keys=["id", "sig", "speech_tokens", "emo_encoded"],
         )
     # Load or compute the label encoder (with multi-GPU DDP support)
     # Please, take a look into the lab_enc_file to see the label to index
