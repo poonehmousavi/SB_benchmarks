@@ -122,7 +122,7 @@ model_opt_class: !name:torch.optim.Adam
     lr: !ref <lr_model>
 
 scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
-    initial_value: !!ref <lr_model>
+    initial_value: !ref <lr_model>
     improvement_threshold: 0.0025
     annealing_factor: 0.9
     patient: 0
