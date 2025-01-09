@@ -324,4 +324,3 @@ if __name__ == "__main__":
         min_key="error_rate",
         test_loader_kwargs=hparams["test_dataloader_opts"],
     )
-cd 
