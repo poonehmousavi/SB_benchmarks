@@ -309,6 +309,8 @@ if __name__ == "__main__":
     # stopped at any point, and will be resumed on next call.
     # Measure time
     start_time = time.time()  # Start the timer
+    logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
+    
     emo_id_brain.fit(
         epoch_counter=emo_id_brain.hparams.epoch_counter,
         train_set=datasets["train"],
@@ -317,10 +319,10 @@ if __name__ == "__main__":
         valid_loader_kwargs=hparams["valid_dataloader_opts"],
     )
     end_time = time.time()  # End the timer
-
-    # Load the best checkpoint for evaluation
-    test_stats = emo_id_brain.evaluate(
-        test_set=datasets["test"],
-        min_key="error_rate",
-        test_loader_kwargs=hparams["test_dataloader_opts"],
-    )
+    if hparams["testing"]:
+        # Load the best checkpoint for evaluation
+        test_stats = emo_id_brain.evaluate(
+            test_set=datasets["test"],
+            min_key="error_rate",
+            test_loader_kwargs=hparams["test_dataloader_opts"],
+        )
