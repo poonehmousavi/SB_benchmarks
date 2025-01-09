@@ -105,7 +105,7 @@ class EmoIdBrain(sb.Brain):
         # At the end of validation...
         if stage == sb.Stage.VALID:
             if type(self.hparams.scheduler).__name__ == "NewBobScheduler":
-                lr, new_lr = self.hparams.scheduler(stage_stats["loss"])
+                lr, new_lr = self.hparams.scheduler(stats["error_rate"])
                 sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
                 lr = self.hparams.scheduler.current_lr
