@@ -37,10 +37,11 @@ pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, th
 ####################### Training Parameters ####################################
 # Training parameters
 precision: fp32
-number_of_epochs: 30
-batch_size: 2
+number_of_epochs: 10
+batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
+batch_size: !ref 2 ** <batch_size_exponent>
 test_batch_size: 1
-lr: 0.0002
+lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
 
 ckpt_interval_minutes: 15 # save checkpoint every N min
 
@@ -118,10 +119,10 @@ log_softmax: !new:speechbrain.nnet.activations.Softmax
 compute_cost: !name:speechbrain.nnet.losses.nll_loss
 
 model_opt_class: !name:torch.optim.Adam
-    lr: !ref <lr>
+    lr: !ref <lr_model>
 
 scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
-    initial_value: !ref <lr>
+    initial_value: !!ref <lr_model>
     improvement_threshold: 0.0025
     annealing_factor: 0.9
     patient: 0

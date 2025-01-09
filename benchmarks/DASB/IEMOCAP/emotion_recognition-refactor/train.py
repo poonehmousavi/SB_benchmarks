@@ -102,16 +102,18 @@ class EmoIdBrain(sb.Brain):
 
         # At the end of validation...
         if stage == sb.Stage.VALID:
-            old_lr, new_lr = self.hparams.lr_annealing_model(
-                stats["error_rate"]
-            )
-            sb.nnet.schedulers.update_learning_rate(
-                self.model_optimizer, new_lr
-            )
+            if type(self.hparams.scheduler).__name__ == "NewBobScheduler":
+                lr, new_lr = self.hparams.scheduler(stage_stats["loss"])
+                sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+            elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
+                lr = self.hparams.scheduler.current_lr
+            else:
+                raise NotImplementedError
 
-            # The train_logger writes a summary to stdout and to the logfile.
+            optimizer = self.optimizer.__class__.__name__
+                        # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
-                {"Epoch": epoch, "lr": old_lr},
+                {"Epoch": epoch, "lr": lr},
                 train_stats={"loss": self.train_loss},
                 valid_stats=stats,
             )
@@ -128,18 +130,18 @@ class EmoIdBrain(sb.Brain):
                 test_stats=stats,
             )
 
-    def init_optimizers(self):
-        "Initializes the weights optimizer and model optimizer"
+    # def init_optimizers(self):
+    #     "Initializes the weights optimizer and model optimizer"
 
-        self.model_optimizer = self.hparams.model_opt_class(
-            self.hparams.model.parameters()
-        )
-        self.optimizers_dict = {
-            "model_optimizer": self.model_optimizer,
-        }
-        # Initializing the weights
-        if self.checkpointer is not None:
-            self.checkpointer.add_recoverable("modelopt", self.model_optimizer)
+    #     self.model_optimizer = self.hparams.model_opt_class(
+    #         self.hparams.model.parameters()
+    #     )
+    #     self.optimizers_dict = {
+    #         "model_optimizer": self.model_optimizer,
+    #     }
+    #     # Initializing the weights
+    #     if self.checkpointer is not None:
+    #         self.checkpointer.add_recoverable("modelopt", self.model_optimizer)
 
 
 def dataio_prep(hparams):
@@ -278,7 +280,8 @@ if __name__ == "__main__":
     # Initialize the Brain object to prepare for mask training.
     emo_id_brain = EmoIdBrain(
         modules=hparams["modules"],
-        hparams=hparams["model_opt_class"],
+        opt_class=hparams["model_opt_class"],
+        hparams=hparams,
         run_opts=run_opts,
         checkpointer=hparams["checkpointer"],
     )
