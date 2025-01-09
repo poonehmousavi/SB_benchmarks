@@ -43,8 +43,8 @@ class EmoIdBrain(sb.Brain):
             enc_out = self.modules.encoder(in_embs, wav_lens)
             
         elif type(self.modules.encoder).__name__ == "StatisticsPooling":
-            enc_out = self.hparams.encoder(in_embs, wav_lens)
-            enc_out = encoder.view(enc_out.shape[0], -1)
+            enc_out = self.modules.encoder(in_embs, wav_lens)
+            enc_out = self.modules.encoder.view(enc_out.shape[0], -1)
 
         else:
             raise NotImplementedError
