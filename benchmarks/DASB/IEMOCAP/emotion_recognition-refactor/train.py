@@ -14,6 +14,8 @@ import sys
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
 
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.append(base_dir)
 
 class EmoIdBrain(sb.Brain):
     def compute_forward(self, batch, stage):
