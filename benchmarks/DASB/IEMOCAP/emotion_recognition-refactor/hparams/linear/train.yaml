@@ -1,6 +1,6 @@
 # ############################################################################
 # Model: E2E ER classifies 4 emotions ( anger, happiness, sadness, neutrality)
-# Encoder: ECAPA-TDNN
+# Encoder: Linear
 # Training: IEMOCAP
 # Authors:
 #     - Pooneh Mousavi 2024
@@ -92,17 +92,13 @@ attention_mlp: !new:model.custom_model.AttentionMLP
    input_dim: !ref <encoder_dim>
    hidden_dim: !ref <encoder_dim>
 
-encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
-    input_size: !ref <encoder_dim>
-    channels: [1024, 1024, 1024, 1024, 3072]
-    kernel_sizes: [5, 3, 3, 3, 1]
-    dilations: [1, 2, 3, 4, 1]
-    attention_channels: 64
-    lin_neurons: 192
+encoder: !new:speechbrain.nnet.pooling.StatisticsPooling
+    return_std: False
 
-classifier: !new:speechbrain.lobes.models.ECAPA_TDNN.Classifier
-    input_size: 192
-    out_neurons: !ref <out_n_neurons>
+classifier: !new:speechbrain.nnet.linear.Linear
+    input_size: !ref <encoder_dim>
+    n_neurons: !ref <out_n_neurons>
+    bias: False
 
 modules:
     classifier: !ref <classifier>
