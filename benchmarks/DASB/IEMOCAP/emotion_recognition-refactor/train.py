@@ -44,7 +44,7 @@ class EmoIdBrain(sb.Brain):
             
         elif type(self.modules.encoder).__name__ == "StatisticsPooling":
             enc_out = self.modules.encoder(in_embs, wav_lens)
-            enc_out = enc_out.view(enc_out.shape[0], -1)
+            enc_out = enc_out.view(enc_out.shape[0], -1).unsqueeze(1)
 
         else:
             raise NotImplementedError
