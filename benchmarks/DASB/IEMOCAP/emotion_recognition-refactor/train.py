@@ -18,6 +18,8 @@ from hyperpyyaml import load_hyperpyyaml
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.append(base_dir)
 
+logger = logging.getLogger(__name__)
+
 class EmoIdBrain(sb.Brain):
     def compute_forward(self, batch, stage):
         """Computation pipeline based on a encoder + emotion classifier."""
@@ -310,7 +312,7 @@ if __name__ == "__main__":
     # Measure time
     start_time = time.time()  # Start the timer
     logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
-    
+
     emo_id_brain.fit(
         epoch_counter=emo_id_brain.hparams.epoch_counter,
         train_set=datasets["train"],
