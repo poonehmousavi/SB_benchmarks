@@ -14,6 +14,7 @@ import sys
 import time
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
+import logging
 
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.append(base_dir)
