@@ -107,14 +107,6 @@ class EmoIdBrain(sb.Brain):
                 self.model_optimizer, new_lr
             )
 
-            # (
-            #     old_lr_encoder,
-            #     new_lr_encoder,
-            # ) = self.hparams.lr_annealing_weights(stats["error_rate"])
-            # sb.nnet.schedulers.update_learning_rate(
-            #     self.weights_optimizer, new_lr_encoder
-            # )
-
             # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
                 {"Epoch": epoch, "lr": old_lr},
@@ -136,22 +128,16 @@ class EmoIdBrain(sb.Brain):
 
     def init_optimizers(self):
         "Initializes the weights optimizer and model optimizer"
-        # self.weights_optimizer = self.hparams.weights_opt_class(
-        #     self.hparams.attention_mlp.parameters()
-        # )
+
         self.model_optimizer = self.hparams.model_opt_class(
             self.hparams.model.parameters()
         )
         self.optimizers_dict = {
             "model_optimizer": self.model_optimizer,
-            # "weights_optimizer": self.weights_optimizer,
         }
         # Initializing the weights
         if self.checkpointer is not None:
             self.checkpointer.add_recoverable("modelopt", self.model_optimizer)
-            # self.checkpointer.add_recoverable(
-            #     "weights_opt", self.weights_optimizer
-            # )
 
 
 def dataio_prep(hparams):
@@ -240,24 +226,79 @@ if __name__ == "__main__":
         hyperparams_to_save=hparams_file,
         overrides=overrides,
     )
+    # Dataset prep (parsing GSC and annotation into csv files)
+    from prepare_GSC import prepare_GSC
 
-    from iemocap_prepare import prepare_data  # noqa E402
+    # Known words for V2 12 and V2 35 sets
+    if hparams["number_of_commands"] == 12:
+        words_wanted = [
+            "yes",
+            "no",
+            "up",
+            "down",
+            "left",
+            "right",
+            "on",
+            "off",
+            "stop",
+            "go",
+        ]
+    elif hparams["number_of_commands"] == 35:
+        words_wanted = [
+            "yes",
+            "no",
+            "up",
+            "down",
+            "left",
+            "right",
+            "on",
+            "off",
+            "stop",
+            "go",
+            "zero",
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "six",
+            "seven",
+            "eight",
+            "nine",
+            "bed",
+            "bird",
+            "cat",
+            "dog",
+            "happy",
+            "house",
+            "marvin",
+            "sheila",
+            "tree",
+            "wow",
+            "backward",
+            "forward",
+            "follow",
+            "learn",
+            "visual",
+        ]
+    else:
+        raise ValueError("number_of_commands must be 12 or 35")
 
-    # Data preparation, to be run on only one process.
+    # Data preparation
     if not hparams["skip_prep"]:
         sb.utils.distributed.run_on_main(
-            prepare_data,
-            kwargs={
-                "data_original": hparams["data_folder"],
-                "save_json_train": hparams["train_annotation"],
-                "save_json_valid": hparams["valid_annotation"],
-                "save_json_test": hparams["test_annotation"],
-                "split_ratio": [80, 10, 10],
-                "different_speakers": hparams["different_speakers"],
-                "test_spk_id": hparams["test_spk_id"],
-                "seed": hparams["seed"],
-            },
-        )
+        prepare_GSC,
+        kwargs={
+            "data_folder": hparams["data_folder"],
+            "save_folder": hparams["output_folder"],
+            "validation_percentage": hparams["validation_percentage"],
+            "testing_percentage": hparams["testing_percentage"],
+            "percentage_unknown": hparams["percentage_unknown"],
+            "percentage_silence": hparams["percentage_silence"],
+            "words_wanted": words_wanted,
+            "skip_prep": hparams["skip_prep"],
+        },
+    )
 
     # Data preparation, to be run on only one process.
     # Create dataset objects "train", "valid", and "test".
