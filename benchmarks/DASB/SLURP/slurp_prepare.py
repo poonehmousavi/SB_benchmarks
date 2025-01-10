@@ -84,10 +84,12 @@ def prepare_SLURP(
         transcript = []
         transcript_format = []
         transcript_opts = []
-
-        jsonl_path = os.path.join(data_folder, split + ".jsonl")
-        if not os.path.isfile(jsonl_path):
+        if split == "train_real":
+            url_split = "train"
+        else:
             url_split = split
+        jsonl_path = os.path.join(data_folder, url_split + ".jsonl")
+        if not os.path.isfile(jsonl_path):
             url = (
                 "https://github.com/pswietojanski/slurp/raw/master/dataset/slurp/"
                 + url_split
