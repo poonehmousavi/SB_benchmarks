@@ -22,6 +22,10 @@ import speechbrain as sb
 import speechbrain.nnet.CNN
 from speechbrain.utils.distributed import run_on_main
 
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.append(base_dir)
+
+logger = logging.getLogger(__name__)
 
 class SpeakerBrain(sb.core.Brain):
     """Class for GSC training" """
