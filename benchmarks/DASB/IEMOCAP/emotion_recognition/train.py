@@ -135,20 +135,6 @@ class EmoIdBrain(sb.Brain):
                 test_stats=stats,
             )
 
-    # def init_optimizers(self):
-    #     "Initializes the weights optimizer and model optimizer"
-
-    #     self.model_optimizer = self.hparams.model_opt_class(
-    #         self.hparams.model.parameters()
-    #     )
-    #     self.optimizers_dict = {
-    #         "model_optimizer": self.model_optimizer,
-    #     }
-    #     # Initializing the weights
-    #     if self.checkpointer is not None:
-    #         self.checkpointer.add_recoverable("modelopt", self.model_optimizer)
-
-
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class.
     It also defines the data processing pipeline through user-defined
@@ -272,7 +258,7 @@ if __name__ == "__main__":
     # Create dataset objects "train", "valid", and "test".
     datasets = dataio_prep(hparams)
 
-        # Use pretrained embeddings
+    # Use pretrained embeddings
     if hparams["pretrain_embeddings"]:
         tokens_loader = hparams["tokens_loader"]
         embs = tokens_loader.load_pretrained_embeddings(

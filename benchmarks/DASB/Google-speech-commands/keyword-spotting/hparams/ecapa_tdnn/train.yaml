@@ -1,0 +1,146 @@
+# ############################################################################
+# Model: keyword spotting model from speech data
+# Encoder: ECAPA-TDNN
+# Training: Google Speech Command
+# Authors:
+#     - Pooneh Mousavi 2024
+# ############################################################################
+# Seed needs to be set at top of yaml, before objects with parameters are made
+
+# Basic parameters
+seed: 1986
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+
+
+# Dataset will be downloaded to the `data_original`
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/GSC
+cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
+# Use 12 for V2 12 task and 35 for V2 35 task
+number_of_commands: 12
+output_folder: !ref results/ks/<number_of_commands>/ecapa_tdnn/dac/<seed>
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+testing: True # If set to True, the test evlaution is done, otherwise skipped.
+
+# Path where data manifest files will be stored
+train_annotation: !ref <cached_data_folder>/train.csv
+valid_annotation: !ref <cached_data_folder>/valid.csv
+test_annotation: !ref <cached_data_folder>/test.csv
+
+# Percentage of files used for validation and test
+validation_percentage: 10
+testing_percentage: 10
+
+# Percentage of unknown and silence examples
+# (relative to total of known word samples) to include
+percentage_unknown: 10 # Set this to 0 for the V2 35 task
+percentage_silence: 10 # Set this to 0 for the V2 35 task
+
+skip_prep: False
+
+tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
+pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
+
+####################### Training Parameters ####################################
+number_of_epochs: 20
+batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(3, 6,discrete=True)"
+batch_size: !ref 2 ** <batch_size_exponent>
+lr_model: 0.001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
+
+ckpt_interval_minutes: 15 # save checkpoint every N min
+
+num_workers: 4
+dataloader_options:
+    batch_size: !ref <batch_size>
+    shuffle: True
+    num_workers: !ref <num_workers>
+
+####################### Model parameters ###########################
+# Tokenizer parameters
+# These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
+vocab_size: 1024
+num_codebooks: 2
+sample_rate: 24000
+
+# Feature parameters
+encoder_dim: 1024
+# If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
+pretrain_embeddings: False
+freeze_embedding: False
+
+# Number of classes (i.e. different commands)
+out_n_neurons: !ref <number_of_commands>  #includes core commands & auxiliary words
+
+############################## models ################################
+tokens_loader: !new:utils.tokens.TokensLoader
+   data_path: !ref <tokens_folder>
+
+discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
+   num_codebooks: !ref <num_codebooks>
+   vocab_size: !ref <vocab_size>
+   emb_dim: !ref <encoder_dim>
+   # hidden_dim: !ref <encoder_dim>
+   freeze: !ref <freeze_embedding>
+   init: !ref <pretrain_embeddings>
+
+attention_mlp: !new:model.custom_model.AttentionMLP
+   input_dim: !ref <encoder_dim>
+   hidden_dim: !ref <encoder_dim>
+
+
+encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
+    input_size: !ref <encoder_dim>
+    channels: [1024, 1024, 1024, 1024, 3072]
+    kernel_sizes: [5, 3, 3, 3, 1]
+    dilations: [1, 2, 3, 4, 1]
+    groups: [1, 1, 1, 1, 1]
+    attention_channels: 128
+    lin_neurons: 192
+
+classifier: !new:speechbrain.lobes.models.ECAPA_TDNN.Classifier
+    input_size: 192
+    out_neurons: !ref <out_n_neurons>
+
+
+softmax: !new:speechbrain.nnet.activations.Softmax
+    apply_log: True
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+modules:
+    classifier: !ref <classifier>
+    encoder: !ref <encoder>
+    attention_mlp: !ref <attention_mlp>
+    discrete_embedding_layer: !ref <discrete_embedding_layer>
+
+model: !new:torch.nn.ModuleList
+    - [!ref <encoder>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
+
+
+compute_cost: !name:speechbrain.nnet.losses.nll_loss
+
+model_opt_class: !name:torch.optim.Adam
+    lr: !ref <lr_model>
+
+scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
+    initial_value: !ref <lr_model>
+    improvement_threshold: 0.0025
+    annealing_factor: 0.9
+    patient: 0
+
+
+############################## Logging and Pretrainer ##########################
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+error_stats: !name:speechbrain.utils.metric_stats.MetricStats
+    metric: !name:speechbrain.nnet.losses.classification_error
+        reduction: batch
+
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        model: !ref <model>
+        scheduler: !ref <scheduler>
+        counter: !ref <epoch_counter>
