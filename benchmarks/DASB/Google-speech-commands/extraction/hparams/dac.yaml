@@ -23,6 +23,10 @@ number_of_commands: 12
 # Percentage of files used for validation and test
 validation_percentage: 10
 testing_percentage: 10
+# Percentage of unknown and silence examples
+# (relative to total of known word samples) to include
+percentage_unknown: 10 # Set this to 0 for the V2 35 task
+percentage_silence: 10 # Set this to 0 for the V2 35 task
 
 batch_size: 8
 num_workers: 8
