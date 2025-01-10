@@ -248,7 +248,7 @@ if __name__ == "__main__":
     )
 
     # Dataset prep (parsing GSC and annotation into csv files)
-    from prepare_GSC import prepare_GSC
+    from GSC_prepare import prepare_GSC
 
     # Known words for V2 12 and V2 35 sets
     if hparams["number_of_commands"] == 12:
