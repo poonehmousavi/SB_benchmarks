@@ -9,6 +9,7 @@ import os
 import sys
 import logging
 import pathlib as pl
+import torchaudio
 import speechbrain as sb
 from speechbrain.dataio.dataset import DynamicItemDataset
 from speechbrain.utils.distributed import run_on_main
@@ -21,6 +22,21 @@ print(base_dir)
 
 logger = logging.getLogger(__name__)
 
+@sb.utils.data_pipeline.takes("wav", "start", "stop")
+@sb.utils.data_pipeline.provides("sig")
+def audio_pipeline(wav, start, stop):
+        start = int(start)
+        stop = int(stop)
+        num_frames = stop - start
+        sig, fs = torchaudio.load(
+            wav, num_frames=num_frames, frame_offset=start
+        )
+        info = torchaudio.info(wav)
+        resampled = torchaudio.transforms.Resample(
+            info.sample_rate, hparams['tokenizer'].sample_rate,
+        )(sig)
+        # resampled = resampled.transpose(0, 1).squeeze(1)
+        return resampled
 
 if __name__ == "__main__":
     # CLI:
@@ -110,6 +126,7 @@ if __name__ == "__main__":
     )
 
     tokens_extractor = hparams["tokens_extractor"]
+    tokens_extractor.pipeline_override=audio_pipeline
     data_folder = hparams["data_folder"]
     datasets = []
     for split in ["train", "valid", "test"]:

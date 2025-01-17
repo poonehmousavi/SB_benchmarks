@@ -67,7 +67,7 @@ ckpt_interval_minutes: 15 # save checkpoint every N min
 
 ####################### Training Parameters ####################################
 number_of_epochs: 50
-batch_size: 32
+batch_size: 1
 lr: 0.001
 
 shuffle: True

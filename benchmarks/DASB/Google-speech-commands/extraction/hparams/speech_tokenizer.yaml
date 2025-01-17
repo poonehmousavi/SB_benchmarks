@@ -28,7 +28,7 @@ testing_percentage: 10
 percentage_unknown: 10 # Set this to 0 for the V2 35 task
 percentage_silence: 10 # Set this to 0 for the V2 35 task
 
-batch_size: 8
+batch_size: 1
 num_workers: 8
 src_key: wav
 id_key: id
@@ -47,7 +47,7 @@ freeze_embedding: False
 save_embedding: False
 
 # EnCodec model (see https://huggingface.co/docs/transformers/v4.31.0/en/model_doc/encodec)
-tokenizer: !new:utils.tokenizer_interface.SpeechTokenizer
+tokenizer: !new:utils.tokenizer_interface.SpeechTokenizerWrapper
   source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
   save_path: !ref <save_folder>
 

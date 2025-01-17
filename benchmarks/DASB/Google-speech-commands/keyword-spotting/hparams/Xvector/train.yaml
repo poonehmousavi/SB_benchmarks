@@ -1,6 +1,6 @@
 # ############################################################################
 # Model: keyword spotting model from speech data
-# Encoder: ECAPA-TDNN
+# Encoder: XVector
 # Training: Google Speech Command
 # Authors:
 #     - Pooneh Mousavi 2024
@@ -88,17 +88,20 @@ attention_mlp: !new:model.custom_model.AttentionMLP
    hidden_dim: !ref <encoder_dim>
 
 
-encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
-    input_size: !ref <encoder_dim>
-    channels: [1024, 1024, 1024, 1024, 3072]
-    kernel_sizes: [5, 3, 3, 3, 1]
-    dilations: [1, 2, 3, 4, 1]
-    groups: [1, 1, 1, 1, 1]
-    attention_channels: 128
-    lin_neurons: 192
+encoder: !new:speechbrain.lobes.models.Xvector.Xvector
+    in_channels: !ref <encoder_dim>
+    activation: !name:torch.nn.LeakyReLU
+    tdnn_blocks: 5
+    tdnn_channels: [1024, 1024, 1024, 1024, 3072]
+    tdnn_kernel_sizes: [5, 3, 3, 1, 1]
+    tdnn_dilations: [1, 2, 3, 1, 1]
+    lin_neurons: 512
 
-classifier: !new:speechbrain.lobes.models.ECAPA_TDNN.Classifier
-    input_size: 192
+classifier: !new:speechbrain.lobes.models.Xvector.Classifier
+    input_shape: [null, null, 512]
+    activation: !name:torch.nn.LeakyReLU
+    lin_blocks: 1
+    lin_neurons: 512
     out_neurons: !ref <out_n_neurons>
 
 

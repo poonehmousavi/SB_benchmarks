@@ -71,6 +71,7 @@ class TokensExtractor:
         save_format="numpy",
         use_cuda=True,
         dataloader_opts=None,
+        pipeline_override=None,
     ):
         self.id_key = id_key
         self.src_key = src_key
@@ -91,7 +92,9 @@ class TokensExtractor:
         if not dataloader_opts:
             dataloader_opts = {}
         self.dataloader_opts = dataloader_opts
+        self.pipeline_override = pipeline_override
         self.pipelines = self._make_pipelines()
+
 
     def extract_tokens(
         self, dataset, num_codebooks, save_path, save_name="tokens"
@@ -172,9 +175,9 @@ class TokensExtractor:
             tokens = np.array(tokens)
             self.writer(utt_id, tokens)
 
-    def _make_pipelines(self):
+    def _default_audio_pipeline(self):
         """
-        Creates the data processing pipeline for audio data.
+        Creates the  default data processing pipeline for audio data.
 
         The pipeline reads audio files, resamples them to the desired sample rate, and provides
         the processed signal under the key "sig".
@@ -195,7 +198,21 @@ class TokensExtractor:
             )(sig)
             return sig
 
-        return [audio_pipeline]
+        return audio_pipeline
+    def _make_pipelines(self):
+        """
+        Creates the data processing pipeline for audio data.
+
+        If a pipeline override is provided, it is used instead of the default pipeline.
+
+        Returns
+        -------
+        pipeline : list
+            A list containing the audio processing pipeline function.
+        """
+        if self.pipeline_override:
+            return [self.pipeline_override()]
+        return [self._default_audio_pipeline()]
 
     def save_pretrained_embeddings(
         self,

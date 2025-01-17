@@ -133,15 +133,15 @@ def prepare_GSC(
     if skip_prep:
         return
 
-    # If the data folders do not exist, we need to extract the data
-    if not os.path.isdir(os.path.join(data_folder, "train-synth")):
-        # Check for zip file and download if it doesn't exist
-        tar_location = os.path.join(data_folder, "speech_commands_v0.02.tar.gz")
-        if not os.path.exists(tar_location):
-            download_file(GSC_URL, tar_location, unpack=True)
-        else:
-            logger.info("Extracting speech_commands_v0.02.tar.gz...")
-            shutil.unpack_archive(tar_location, data_folder)
+    # # If the data folders do not exist, we need to extract the data
+    # if not os.path.isdir(os.path.join(data_folder, "train-synth")):
+    #     # Check for zip file and download if it doesn't exist
+    #     tar_location = os.path.join(data_folder, "speech_commands_v0.02.tar.gz")
+    #     if not os.path.exists(tar_location):
+    #         download_file(GSC_URL, tar_location, unpack=True)
+    #     else:
+    #         logger.info("Extracting speech_commands_v0.02.tar.gz...")
+    #         shutil.unpack_archive(tar_location, data_folder)
 
     # Define the words that we do not want to identify
     unknown_words = list(np.setdiff1d(all_words, words_wanted))

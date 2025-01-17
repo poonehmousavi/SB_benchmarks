@@ -36,7 +36,7 @@ class SpeakerBrain(sb.core.Brain):
         input speech.
         """
         batch = batch.to(self.device)
-        wavs, lens = batch.sig
+        wavs, wav_lens = batch.sig
         in_toks, _ = batch.speech_tokens
 
         in_embs = self.modules.discrete_embedding_layer(
@@ -56,7 +56,7 @@ class SpeakerBrain(sb.core.Brain):
         if "softmax" in self.modules.keys():
             outputs = self.modules.softmax(outputs)
 
-        return outputs, lens
+        return outputs, wav_lens
 
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss using command-id as label."""
