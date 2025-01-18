@@ -1,0 +1,168 @@
+
+# ############################################################################
+# Model: "Intent" classification 
+# Encoder: LSTM + Linear
+# Training: SLURP
+# Authors:
+#     - Pooneh Mousavi 2024
+# ############################################################################
+# Seed needs to be set at top of yaml, before objects with parameters are made
+
+# Seed needs to be set at top of yaml, before objects with parameters are made
+seed: 1986
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+output_folder: !ref results/SLURP/linear/tokenizer_name/<seed>
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+testing: True
+
+# Data files
+# The SLURP dataset will be automatically downloaded in the specified folder
+data_folder: !PLACEHOLDER
+cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
+train_splits: ["train_real"]
+csv_train: !ref <cached_data_folder>/train-type=direct.csv
+csv_valid: !ref <cached_data_folder>/devel-type=direct.csv
+csv_test: !ref <cached_data_folder>/test-type=direct.csv
+skip_prep: False
+
+tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
+pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
+
+####################### Training Parameters ####################################
+number_of_epochs: 20
+batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
+batch_size: !ref 2 ** <batch_size_exponent>
+test_batch_size: 1
+precision: fp32
+
+lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
+
+sorting: random
+ckpt_interval_minutes: 15 # save checkpoint every N min
+
+# Dataloader options
+train_dataloader_opts:
+   batch_size: !ref <batch_size>
+   shuffle: True
+   num_workers: 2  # 2 on linux but 0 works on windows
+   drop_last: False
+
+valid_dataloader_opts:
+   batch_size: !ref <batch_size>
+
+test_dataloader_opts:
+   batch_size: !ref <test_batch_size>
+
+
+####################### Model parameters ###########################
+# Tokenizer parameters
+# These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
+vocab_size: 1024
+num_codebooks: 2
+sample_rate: 24000
+
+
+# Feature parameters
+encoder_dim: 1024
+# If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
+pretrain_embeddings: False
+freeze_embedding: False
+
+# Model parameters
+output_neurons: 18 # index(eos/bos) = 0
+
+# Decoding parameters
+bos_index: 0
+eos_index: 0
+min_decode_ratio: 0.0
+max_decode_ratio: 10.0
+slu_beam_size: 80
+eos_threshold: 1.5
+temperature: 1.25
+
+############################## models ################################
+tokens_loader: !new:utils.tokens.TokensLoader
+   data_path: !ref <tokens_folder>
+
+discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
+   num_codebooks: !ref <num_codebooks>
+   vocab_size: !ref <vocab_size>
+   emb_dim: !ref <encoder_dim>
+   # hidden_dim: !ref <encoder_dim>
+   freeze: !ref <freeze_embedding>
+   init: !ref <pretrain_embeddings>
+
+attention_mlp: !new:model.custom_model.AttentionMLP
+   input_dim: !ref <encoder_dim>
+   hidden_dim: !ref <encoder_dim>
+
+encoder: !new:speechbrain.nnet.containers.Sequential
+   input_shape: [null, null, !ref <encoder_dim>]
+   lstm: !new:speechbrain.nnet.RNN.LSTM
+      input_size: !ref <encoder_dim>
+      bidirectional: True
+      hidden_size: !ref <encoder_dim>
+      num_layers: 2
+   linear: !new:speechbrain.nnet.linear.Linear
+      input_size: !ref <encoder_dim> * 2
+      n_neurons: !ref <encoder_dim>
+      
+avg_pool: !new:speechbrain.nnet.pooling.StatisticsPooling
+   return_std: False
+
+classifier: !new:speechbrain.nnet.linear.Linear
+   input_size: !ref <encoder_dim>
+   n_neurons: 18
+   bias: False
+
+tokenizer: !new:sentencepiece.SentencePieceProcessor
+
+modules:
+   encoder: !ref <encoder>
+   avg_pool: !ref <avg_pool>
+   classifier: !ref <classifier>
+   attention_mlp: !ref <attention_mlp>
+   # tokenizer: !ref <tokenizer>
+   discrete_embedding_layer: !ref <discrete_embedding_layer>
+
+
+model: !new:torch.nn.ModuleList
+   - [!ref <encoder>, !ref <avg_pool>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
+
+#######################optimiser ###########################
+compute_cost: !name:speechbrain.nnet.losses.nll_loss
+
+log_softmax: !new:speechbrain.nnet.activations.Softmax
+   apply_log: True
+
+model_opt_class: !name:torch.optim.Adam
+   lr: !ref <lr_model>
+
+scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
+   initial_value: !ref <lr_model>
+   improvement_threshold: 0.0025
+   annealing_factor: 0.8
+   patient: 0
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+   limit: !ref <number_of_epochs>
+
+
+############################## Logging and Pretrainer ##########################
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+   checkpoints_dir: !ref <save_folder>
+   recoverables:
+      model: !ref <model>
+      scheduler: !ref <scheduler>
+      counter: !ref <epoch_counter>
+
+error_stats: !name:speechbrain.utils.metric_stats.MetricStats
+   metric: !name:speechbrain.nnet.losses.classification_error
+      reduction: batch
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+   save_file: !ref <train_log>
+
+
+
