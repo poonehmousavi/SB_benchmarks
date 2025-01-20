@@ -10,6 +10,7 @@ Authors
 import os
 import sys
 import logging
+import torchaudio
 import pathlib as pl
 import speechbrain as sb
 from speechbrain.dataio.dataset import DynamicItemDataset
@@ -24,6 +25,21 @@ print(base_dir)
 
 logger = logging.getLogger(__name__)
 
+@sb.utils.data_pipeline.takes("wav", "start", "stop")
+@sb.utils.data_pipeline.provides("sig")
+def audio_pipeline(wav, start, stop):
+    start = int(start)
+    stop = int(stop)
+    num_frames = stop - start
+    sig, fs = torchaudio.load(
+            wav, num_frames=num_frames, frame_offset=start
+    )
+    info = torchaudio.info(wav)
+    resampled = torchaudio.transforms.Resample(
+        info.sample_rate, hparams["sample_rate"],
+    )(sig)
+    resampled = resampled.transpose(0, 1).squeeze(1)
+    return resampled
 
 if __name__ == "__main__":
     # CLI:
@@ -51,23 +67,22 @@ if __name__ == "__main__":
         run_on_main(
             prepare_voxceleb,
             kwargs={
-                data_folder=hparams["data_folder"],
-                save_folder=hparams["save_folder"],
-                verification_pairs_file=veri_file_path,
-                splits=["train", "dev", "test"],
-                split_ratio=[90, 10],
-                seg_dur=hparams["sentence_len"],
-                skip_prep=hparams["skip_prep"],
-                source=hparams["voxceleb_source"]
-                if "voxceleb_source" in hparams
-                else None,
+                "data_folder":hparams["data_folder"],
+                "save_folder":hparams["save_folder"],
+                "verification_pairs_file":veri_file_path,
+                "splits":["train", "dev", "test"],
+                "split_ratio":[90, 10],
+                "seg_dur":hparams["sentence_len"],
+                "skip_prep":hparams["skip_prep"],
+                "source":hparams["voxceleb_source"] if "voxceleb_source" in hparams else None,
             },
         )
 
     tokens_extractor = hparams["tokens_extractor"]
+    tokens_extractor.pipeline_override=audio_pipeline
     data_folder = hparams["data_folder"]
     datasets = []
-    for split in ["train", "valid", "test"]:
+    for split in ["train", "valid", "test","enrol"]:
         csv_path = hparams[f"{split}_annotation"]
         name = pl.Path(csv_path).stem
         dataset = sb.dataio.dataset.DynamicItemDataset.from_csv(
@@ -87,7 +102,7 @@ if __name__ == "__main__":
     tokens_extractor.extract_tokens(
         merged_dataset,
         hparams["num_codebooks"],
-        (save_folder / "librispeech").as_posix(),
+        (save_folder / "voxceleb").as_posix(),
     )
 
     if hparams["save_embedding"]:

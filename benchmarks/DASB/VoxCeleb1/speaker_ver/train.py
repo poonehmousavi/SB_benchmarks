@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 """Recipe for training then testing speaker embeddings using the VoxCeleb1 Dataset.
-Embeddings are used using the Xvector network
 
 Authors
  * Pooneh Mousavi 2024
@@ -19,8 +18,13 @@ from hyperpyyaml import load_hyperpyyaml
 from speechbrain.utils.metric_stats import EER, minDCF
 from speechbrain.utils.distributed import run_on_main
 
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+sys.path.append(base_dir)
 
-def compute_embedding(wavs, wav_lens):
+
+logger = logging.getLogger(__name__)
+
+def compute_embedding(in_toks, wav_lens):
     """Compute speaker embeddings.
 
     Arguments
@@ -33,16 +37,22 @@ def compute_embedding(wavs, wav_lens):
         in the length (e.g., [0.8 0.6 1.0])
     """
     with torch.no_grad():
-        wavs, wav_lens = (
-            wavs.to(speaker_brain.device),
+        in_toks, wav_lens = (
+            in_toks.to(speaker_brain.device),
             wav_lens.to(speaker_brain.device),
         )
-        speaker_brain.hparams.codec.to(speaker_brain.device).eval()
-        tokens, _ = speaker_brain.hparams.codec.encode(wavs, wav_lens)
-        embeddings = speaker_brain.modules.discrete_embedding_layer(tokens)
-        att_w = speaker_brain.modules.attention_mlp(embeddings)
-        feats = torch.matmul(att_w.transpose(2, -1), embeddings).squeeze(-2)
-        embeddings = speaker_brain.modules.embedding_model(feats, wav_lens)
+        in_embs = speaker_brain.modules.discrete_embedding_layer(
+            in_toks
+        )  # [B, T, N-Q, D]
+ 
+        # Attention-Pooling
+        att_w = speaker_brain.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
+        in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
+            -2
+        )  # [B, T, D]
+
+        embeddings = speaker_brain.modules.encoder(in_embs, wav_lens)
+        
     return embeddings.squeeze(1)
 
 
@@ -57,6 +67,7 @@ def compute_embedding_loop(data_loader):
             batch = batch.to(hparams["device"])
             seg_ids = batch.id
             wavs, lens = batch.sig
+            in_toks, _ = batch.speech_tokens
 
             found = False
             for seg_id in seg_ids:
@@ -65,7 +76,7 @@ def compute_embedding_loop(data_loader):
             if not found:
                 continue
             wavs, lens = wavs.to(hparams["device"]), lens.to(hparams["device"])
-            emb = compute_embedding(wavs, lens).unsqueeze(1)
+            emb = compute_embedding(in_toks, lens).unsqueeze(1)
             for i, seg_id in enumerate(seg_ids):
                 embedding_dict[seg_id] = emb[i].detach().clone()
     return embedding_dict
@@ -178,6 +189,17 @@ def dataio_prep_verif(params):
 
     datasets = [train_data, enrol_data, test_data]
 
+        # 1. Define tokens pipeline:
+    tokens_loader = hparams["tokens_loader"]
+    num_codebooks = hparams["num_codebooks"]
+    @sb.utils.data_pipeline.takes("id")
+    @sb.utils.data_pipeline.provides("speech_tokens")
+    def tokens_pipeline(id):
+        tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
+        return tokens
+    
+    sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
+
     # 2. Define audio pipeline:
     @sb.utils.data_pipeline.takes("wav", "start", "stop")
     @sb.utils.data_pipeline.provides("sig")
@@ -198,7 +220,7 @@ def dataio_prep_verif(params):
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
 
     # 3. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig"])
+    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig","speech_tokens"])
 
     # 4 Create dataloaders
     train_dataloader = sb.dataio.dataloader.make_dataloader(
@@ -222,17 +244,22 @@ class SpeakerBrain(sb.core.Brain):
         """Computation pipeline based on a encoder + speaker classifier.
         """
         batch = batch.to(self.device)
-        wavs, lens = batch.sig
-        with torch.no_grad():
-            self.hparams.codec.to(self.device).eval()
-            tokens, _ = self.hparams.codec.encode(wavs, lens)
-        embeddings = self.modules.discrete_embedding_layer(tokens)
-        att_w = self.modules.attention_mlp(embeddings)
-        feats = torch.matmul(att_w.transpose(2, -1), embeddings).squeeze(-2)
-        # Embeddings + speaker classifier
-        embeddings = self.modules.embedding_model(feats)
-        outputs = self.modules.classifier(embeddings)
-        return outputs, lens
+        wavs, wav_lens = batch.sig
+        in_toks, _ = batch.speech_tokens
+
+        in_embs = self.modules.discrete_embedding_layer(
+            in_toks
+        )  # [B, T, N-Q, D]
+
+        # Attention-Pooling
+        att_w = self.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
+        in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
+            -2
+        )  # [B, T, D]
+
+        enc_out = self.modules.encoder(in_embs, wav_lens)
+        outputs = self.modules.classifier(enc_out)
+        return outputs, wav_lens
 
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss using speaker-id as label.
@@ -244,9 +271,9 @@ class SpeakerBrain(sb.core.Brain):
         loss = self.hparams.compute_cost(predictions, spkid, lens)
 
         if stage == sb.Stage.TRAIN and hasattr(
-            self.hparams.lr_annealing, "on_batch_end"
+            self.hparams.scheduler, "on_batch_end"
         ):
-            self.hparams.lr_annealing.on_batch_end(self.model_optimizer)
+            self.hparams.scheduler.on_batch_end(self.model_optimizer)
 
         if stage != sb.Stage.TRAIN:
             self.error_metrics.append(uttid, predictions, spkid, lens)
@@ -269,13 +296,24 @@ class SpeakerBrain(sb.core.Brain):
 
         # Perform end-of-iteration things, like annealing, logging, etc.
         if stage == sb.Stage.VALID:
-            old_lr, new_lr = self.hparams.lr_annealing(epoch)
-            sb.nnet.schedulers.update_learning_rate(
-                self.model_optimizer, new_lr
-            )
+            if type(self.hparams.scheduler).__name__ in ["NewBobScheduler","CyclicLRScheduler"] :
+                lr, new_lr = self.hparams.scheduler(stage_stats["loss"])
+                sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
+            elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
+                lr = self.hparams.scheduler.current_lr
+            else:
+                raise NotImplementedError
+
+            optimizer = self.optimizer.__class__.__name__
+            epoch_stats = {
+                "epoch": epoch,
+                "lr": lr,
+                "optimizer": optimizer,
+            }
+
 
             self.hparams.train_logger.log_stats(
-                stats_meta={"epoch": epoch, "lr": old_lr},
+                stats_meta=epoch_stats,
                 train_stats=self.train_stats,
                 valid_stats=stage_stats,
             )
@@ -283,18 +321,6 @@ class SpeakerBrain(sb.core.Brain):
                 meta={"ErrorRate": stage_stats["ErrorRate"]},
                 min_keys=["ErrorRate"],
             )
-
-    def init_optimizers(self):
-        "Initializes the weights optimizer and model optimizer"
-        self.model_optimizer = self.hparams.model_opt_class(
-            self.hparams.model.parameters()
-        )
-        self.optimizers_dict = {
-            "model_optimizer": self.model_optimizer,
-        }
-        # Initializing the weights
-        if self.checkpointer is not None:
-            self.checkpointer.add_recoverable("modelopt", self.model_optimizer)
 
 
 def dataio_prep(hparams):
@@ -304,12 +330,12 @@ def dataio_prep(hparams):
 
     # 1. Declarations:
     train_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["train_annotation"],
+        csv_path=hparams["train_data"],
         replacements={"data_root": data_folder},
     )
 
     valid_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["valid_annotation"],
+        csv_path=hparams["dev_data"],
         replacements={"data_root": data_folder},
     )
 
@@ -319,6 +345,17 @@ def dataio_prep(hparams):
     snt_len_sample = int(
         hparams["original_sample_rate"] * hparams["sentence_len"]
     )
+
+        # 1. Define tokens pipeline:
+    tokens_loader = hparams["tokens_loader"]
+    num_codebooks = hparams["num_codebooks"]
+
+    @sb.utils.data_pipeline.takes("id")
+    @sb.utils.data_pipeline.provides("speech_tokens")
+    def tokens_pipeline(id):
+        tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
+        return tokens
+    sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
 
     # 2. Define audio pipeline:
     @sb.utils.data_pipeline.takes("wav", "start", "stop", "duration")
@@ -362,7 +399,7 @@ def dataio_prep(hparams):
     )
 
     # 4. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "spk_id_encoded"])
+    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "spk_id_encoded","speech_tokens"])
 
     return train_data, valid_data, label_encoder
 
@@ -405,13 +442,9 @@ if __name__ == "__main__":
         else None,
     )
 
-    # Loading wav2vec2.0
-    if not hparams["pretrain"]:
-        run_on_main(hparams["pretrainer"].collect_files)
-        hparams["pretrainer"].load_collected()
-
     # Dataset IO prep: creating Dataset objects and proper encodings for phones
     train_data, valid_data, label_encoder = dataio_prep(hparams)
+
 
     # Create experiment directory
     sb.core.create_experiment_directory(
@@ -420,9 +453,49 @@ if __name__ == "__main__":
         overrides=overrides,
     )
 
+    # Use pretrained embeddings
+    if hparams["pretrain_embeddings"]:
+        tokens_loader = hparams["tokens_loader"]
+        embs = tokens_loader.load_pretrained_embeddings(
+            hparams["pretain_embeddings_folder"]
+        )
+        if isinstance(hparams["num_codebooks"], int):
+            embs = embs[
+                : hparams["num_codebooks"] * hparams["vocab_size"],
+            ]
+        # For discrete SSL, num_codebooks is a list used to determine which layers to use.
+        # It is not sequential and can be, for example, [0, 1] or [1, 4].
+        elif isinstance(hparams["num_codebooks"], list):
+            indices = [
+                i
+                for codebook_idx in hparams["num_codebooks"]
+                for i in range(
+                    codebook_idx * hparams["vocab_size"],
+                    (codebook_idx + 1) * hparams["vocab_size"],
+                )
+            ]
+            indices = torch.tensor(indices, dtype=torch.long)
+            embs = embs[indices]
+        hparams["discrete_embedding_layer"].init_embedding(embs)
+
+    # Log number of parameters/buffers
+    model_params = sum(
+        [
+            x.numel()
+            for module in hparams["modules"].values()
+            for x in module.state_dict().values()
+        ]
+    )
+    hparams["train_logger"].log_stats(
+        stats_meta={
+            "Model parameters/buffers (M)": f"{model_params / 1e6:.2f}",
+        },
+    )
+
     # Brain class initialization
     speaker_brain = SpeakerBrain(
         modules=hparams["modules"],
+        opt_class=hparams["model_opt_class"],
         hparams=hparams,
         run_opts=run_opts,
         checkpointer=hparams["checkpointer"],
