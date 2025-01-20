@@ -117,9 +117,14 @@ class EmoIdBrain(sb.Brain):
                 raise NotImplementedError
 
             optimizer = self.optimizer.__class__.__name__
+            epoch_stats = {
+                "epoch": epoch,
+                "lr": lr,
+                "optimizer": optimizer,
+            }
             # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
-                {"Epoch": epoch, "lr": lr},
+                stats_meta=epoch_stats,
                 train_stats={"loss": self.train_loss},
                 valid_stats=stats,
             )

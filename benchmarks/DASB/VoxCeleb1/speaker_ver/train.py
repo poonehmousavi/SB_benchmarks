@@ -434,18 +434,22 @@ if __name__ == "__main__":
     # Dataset prep (parsing VoxCeleb and annotation into csv files)
     from voxceleb_prepare import prepare_voxceleb  # noqa
 
-    prepare_voxceleb(
-        data_folder=hparams["data_folder"],
-        save_folder=hparams["save_folder"],
-        verification_pairs_file=veri_file_path,
-        splits=["train", "dev", "test"],
-        split_ratio=[90, 10],
-        seg_dur=hparams["sentence_len"],
-        skip_prep=hparams["skip_prep"],
-        source=hparams["voxceleb_source"]
-        if "voxceleb_source" in hparams
-        else None,
-    )
+    if not hparams["skip_prep"]:
+        run_on_main(
+            prepare_voxceleb,
+            kwargs={
+                "data_folder": hparams["data_folder"],
+                "save_folder": hparams["save_folder"],
+                "verification_pairs_file": veri_file_path,
+                "splits": ["train", "dev", "test"],
+                "split_ratio": [90, 10],
+                "seg_dur": hparams["sentence_len"],
+                "skip_prep": hparams["skip_prep"],
+                "source": hparams["voxceleb_source"]
+                if "voxceleb_source" in hparams
+                else None,
+            },
+        )
 
     # Dataset IO prep: creating Dataset objects and proper encodings for phones
     train_data, valid_data, label_encoder = dataio_prep(hparams)
@@ -514,7 +518,7 @@ if __name__ == "__main__":
         valid_loader_kwargs=hparams["enrol_dataloader_opts"],
     )
 
-    if hparams["do_verification"]:
+    if hparams["testing"]:
 
         # Now preparing for test :
         hparams["device"] = speaker_brain.device

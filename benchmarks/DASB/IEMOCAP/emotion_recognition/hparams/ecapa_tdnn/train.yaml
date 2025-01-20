@@ -78,19 +78,19 @@ out_n_neurons: 4 # (anger, happiness, sadness, neutral)
 
 ############################## models ################################
 tokens_loader: !new:utils.tokens.TokensLoader
-   data_path: !ref <tokens_folder>
+    data_path: !ref <tokens_folder>
 
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
-   num_codebooks: !ref <num_codebooks>
-   vocab_size: !ref <vocab_size>
-   emb_dim: !ref <encoder_dim>
-   # hidden_dim: !ref <encoder_dim>
-   freeze: !ref <freeze_embedding>
-   init: !ref <pretrain_embeddings>
+    num_codebooks: !ref <num_codebooks>
+    vocab_size: !ref <vocab_size>
+    emb_dim: !ref <encoder_dim>
+    # hidden_dim: !ref <encoder_dim>
+    freeze: !ref <freeze_embedding>
+    init: !ref <pretrain_embeddings>
 
 attention_mlp: !new:model.custom_model.AttentionMLP
-   input_dim: !ref <encoder_dim>
-   hidden_dim: !ref <encoder_dim>
+    input_dim: !ref <encoder_dim>
+    hidden_dim: !ref <encoder_dim>
 
 encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
     input_size: !ref <encoder_dim>
