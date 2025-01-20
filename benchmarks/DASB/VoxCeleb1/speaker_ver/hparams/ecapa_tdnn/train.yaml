@@ -158,4 +158,3 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
       model: !ref <model>
       scheduler: !ref <scheduler>
       counter: !ref <epoch_counter>
-    

@@ -23,6 +23,7 @@ sys.path.append(base_dir)
 
 logger = logging.getLogger(__name__)
 
+
 class IntentIdBrain(sb.Brain):
     def compute_forward(self, batch, stage):
         """Computation pipeline based on a encoder + emotion classifier."""
@@ -42,14 +43,17 @@ class IntentIdBrain(sb.Brain):
         )  # [B, T, D]
 
         # forward modules
-        if "encoder"  in self.modules and type(self.modules.encoder).__name__ == "Sequential":
+        if (
+            "encoder" in self.modules
+            and type(self.modules.encoder).__name__ == "Sequential"
+        ):
             enc_out = self.modules.encoder(in_embs)
 
         else:
             enc_out = in_embs
 
         # last dim will be used for AdaptativeAVG pool
-       
+
         outputs = self.hparams.avg_pool(enc_out, wav_lens)
         outputs = outputs.view(outputs.shape[0], -1)
         outputs = self.modules.classifier(outputs)
@@ -112,7 +116,7 @@ class IntentIdBrain(sb.Brain):
         # At the end of validation...
         if stage == sb.Stage.VALID:
             if type(self.hparams.scheduler).__name__ == "NewBobScheduler":
-                lr, new_lr = self.hparams.scheduler( stats["error_rate"])
+                lr, new_lr = self.hparams.scheduler(stats["error_rate"])
                 sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
                 lr = self.hparams.scheduler.current_lr
@@ -144,6 +148,7 @@ class IntentIdBrain(sb.Brain):
                 {"Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stats,
             )
+
 
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class.
@@ -214,6 +219,7 @@ def dataio_prep(hparams):
         )(sig)
         #         resampled = resampled.unsqueeze(0)
         return resampled
+
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
     # ]Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
@@ -224,6 +230,7 @@ def dataio_prep(hparams):
     def tokens_pipeline(id):
         tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
         return tokens
+
     sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
 
     # Initialization of the label encoder. The label encoder assignes to each
@@ -243,7 +250,8 @@ def dataio_prep(hparams):
     # Define datasets. We also connect the dataset with the data processing
     # functions defined above.
     sb.dataio.dataset.set_output_keys(
-        datasets, ["id", "sig", "scenario", "scenario_encoded" , "speech_tokens"],
+        datasets,
+        ["id", "sig", "scenario", "scenario_encoded", "speech_tokens"],
     )
     # Load or compute the label encoder (with multi-GPU DDP support)
     # Please, take a look into the lab_enc_file to see the label to index
@@ -300,7 +308,6 @@ if __name__ == "__main__":
     # Create dataset objects "train", "valid", and "test".
     datasets = dataio_prep(hparams)
 
-
     # Use pretrained embeddings
     if hparams["pretrain_embeddings"]:
         tokens_loader = hparams["tokens_loader"]
@@ -353,7 +360,7 @@ if __name__ == "__main__":
     # necessary to update the parameters of the model. Since all objects
     # with changing state are managed by the Checkpointer, training can be
     # stopped at any point, and will be resumed on next call.
-        # Measure time
+    # Measure time
     start_time = time.time()  # Start the timer
     ic_id_brain.fit(
         epoch_counter=ic_id_brain.hparams.epoch_counter,
@@ -368,7 +375,7 @@ if __name__ == "__main__":
     logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
 
     if hparams["testing"]:
-    # Testing
+        # Testing
         # Load the best checkpoint for evaluation
         test_stats = ic_id_brain.evaluate(
             test_set=datasets["test"],

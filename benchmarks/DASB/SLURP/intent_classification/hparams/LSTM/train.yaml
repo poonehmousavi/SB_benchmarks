@@ -1,6 +1,6 @@
 
 # ############################################################################
-# Model: "Intent" classification 
+# Model: "Intent" classification
 # Encoder: LSTM + Linear
 # Training: SLURP
 # Authors:
@@ -107,7 +107,7 @@ encoder: !new:speechbrain.nnet.containers.Sequential
    linear: !new:speechbrain.nnet.linear.Linear
       input_size: !ref <encoder_dim> * 2
       n_neurons: !ref <encoder_dim>
-      
+
 avg_pool: !new:speechbrain.nnet.pooling.StatisticsPooling
    return_std: False
 

@@ -95,7 +95,6 @@ class TokensExtractor:
         self.pipeline_override = pipeline_override
         self.pipelines = self._make_pipelines()
 
-
     def extract_tokens(
         self, dataset, num_codebooks, save_path, save_name="tokens"
     ):
@@ -199,6 +198,7 @@ class TokensExtractor:
             return sig
 
         return audio_pipeline
+
     def _make_pipelines(self):
         """
         Creates the data processing pipeline for audio data.

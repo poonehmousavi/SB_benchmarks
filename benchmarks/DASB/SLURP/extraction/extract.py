@@ -38,7 +38,7 @@ if __name__ == "__main__":
     from slurp_prepare import prepare_SLURP  # noqa
 
     # Data preparation, to be run on only one process.
-    if not hparams["skip_prep"]:    
+    if not hparams["skip_prep"]:
         run_on_main(
             prepare_SLURP,
             kwargs={
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 "slu_type": "direct",
                 "skip_prep": hparams["skip_prep"],
             },
-    )
+        )
 
     tokens_extractor = hparams["tokens_extractor"]
     data_folder = hparams["data_folder"]

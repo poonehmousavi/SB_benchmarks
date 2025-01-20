@@ -24,6 +24,7 @@ sys.path.append(base_dir)
 
 logger = logging.getLogger(__name__)
 
+
 def compute_embedding(in_toks, wav_lens):
     """Compute speaker embeddings.
 
@@ -44,7 +45,7 @@ def compute_embedding(in_toks, wav_lens):
         in_embs = speaker_brain.modules.discrete_embedding_layer(
             in_toks
         )  # [B, T, N-Q, D]
- 
+
         # Attention-Pooling
         att_w = speaker_brain.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
         in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
@@ -52,7 +53,7 @@ def compute_embedding(in_toks, wav_lens):
         )  # [B, T, D]
 
         embeddings = speaker_brain.modules.encoder(in_embs, wav_lens)
-        
+
     return embeddings.squeeze(1)
 
 
@@ -189,15 +190,16 @@ def dataio_prep_verif(params):
 
     datasets = [train_data, enrol_data, test_data]
 
-        # 1. Define tokens pipeline:
+    # 1. Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
+
     @sb.utils.data_pipeline.takes("id")
     @sb.utils.data_pipeline.provides("speech_tokens")
     def tokens_pipeline(id):
         tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
         return tokens
-    
+
     sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
 
     # 2. Define audio pipeline:
@@ -220,7 +222,7 @@ def dataio_prep_verif(params):
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
 
     # 3. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig","speech_tokens"])
+    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "speech_tokens"])
 
     # 4 Create dataloaders
     train_dataloader = sb.dataio.dataloader.make_dataloader(
@@ -296,7 +298,10 @@ class SpeakerBrain(sb.core.Brain):
 
         # Perform end-of-iteration things, like annealing, logging, etc.
         if stage == sb.Stage.VALID:
-            if type(self.hparams.scheduler).__name__ in ["NewBobScheduler","CyclicLRScheduler"] :
+            if type(self.hparams.scheduler).__name__ in [
+                "NewBobScheduler",
+                "CyclicLRScheduler",
+            ]:
                 lr, new_lr = self.hparams.scheduler(stage_stats["loss"])
                 sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
             elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
@@ -310,7 +315,6 @@ class SpeakerBrain(sb.core.Brain):
                 "lr": lr,
                 "optimizer": optimizer,
             }
-
 
             self.hparams.train_logger.log_stats(
                 stats_meta=epoch_stats,
@@ -330,13 +334,11 @@ def dataio_prep(hparams):
 
     # 1. Declarations:
     train_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["train_data"],
-        replacements={"data_root": data_folder},
+        csv_path=hparams["train_data"], replacements={"data_root": data_folder},
     )
 
     valid_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["dev_data"],
-        replacements={"data_root": data_folder},
+        csv_path=hparams["dev_data"], replacements={"data_root": data_folder},
     )
 
     datasets = [train_data, valid_data]
@@ -346,7 +348,7 @@ def dataio_prep(hparams):
         hparams["original_sample_rate"] * hparams["sentence_len"]
     )
 
-        # 1. Define tokens pipeline:
+    # 1. Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
 
@@ -355,6 +357,7 @@ def dataio_prep(hparams):
     def tokens_pipeline(id):
         tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
         return tokens
+
     sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
 
     # 2. Define audio pipeline:
@@ -399,7 +402,9 @@ def dataio_prep(hparams):
     )
 
     # 4. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "spk_id_encoded","speech_tokens"])
+    sb.dataio.dataset.set_output_keys(
+        datasets, ["id", "sig", "spk_id_encoded", "speech_tokens"]
+    )
 
     return train_data, valid_data, label_encoder
 
@@ -444,7 +449,6 @@ if __name__ == "__main__":
 
     # Dataset IO prep: creating Dataset objects and proper encodings for phones
     train_data, valid_data, label_encoder = dataio_prep(hparams)
-
 
     # Create experiment directory
     sb.core.create_experiment_directory(

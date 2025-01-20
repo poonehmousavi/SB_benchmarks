@@ -27,6 +27,7 @@ sys.path.append(base_dir)
 
 logger = logging.getLogger(__name__)
 
+
 class SpeakerBrain(sb.core.Brain):
     """Class for GSC training" """
 
@@ -169,7 +170,7 @@ def dataio_prep(hparams):
 
     datasets = [train_data, valid_data, test_data]
     label_encoder = sb.dataio.encoder.CategoricalEncoder()
-    
+
     #  Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
@@ -179,7 +180,7 @@ def dataio_prep(hparams):
     def tokens_pipeline(id):
         tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
         return tokens
-    
+
     sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
 
     # Define audio pipeline:
@@ -220,7 +221,7 @@ def dataio_prep(hparams):
 
     # Set output:
     sb.dataio.dataset.set_output_keys(
-        datasets, ["id", "sig","speech_tokens", "command_encoded"]
+        datasets, ["id", "sig", "speech_tokens", "command_encoded"]
     )
 
     return train_data, valid_data, test_data, label_encoder
@@ -348,7 +349,7 @@ if __name__ == "__main__":
             indices = torch.tensor(indices, dtype=torch.long)
             embs = embs[indices]
         hparams["discrete_embedding_layer"].init_embedding(embs)
-    
+
     # Brain class initialization
     speaker_brain = SpeakerBrain(
         modules=hparams["modules"],
@@ -372,7 +373,7 @@ if __name__ == "__main__":
     # Calculate elapsed time
     elapsed_time = end_time - start_time
     logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
-    
+
     if hparams["testing"]:
         # Load the best checkpoint for evaluation
         test_stats = speaker_brain.evaluate(

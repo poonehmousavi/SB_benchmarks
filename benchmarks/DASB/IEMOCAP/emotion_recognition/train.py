@@ -21,6 +21,7 @@ sys.path.append(base_dir)
 
 logger = logging.getLogger(__name__)
 
+
 class EmoIdBrain(sb.Brain):
     def compute_forward(self, batch, stage):
         """Computation pipeline based on a encoder + emotion classifier."""
@@ -41,7 +42,7 @@ class EmoIdBrain(sb.Brain):
         # forward modules
         if type(self.modules.encoder).__name__ == "ECAPA_TDNN":
             enc_out = self.modules.encoder(in_embs, wav_lens)
-            
+
         elif type(self.modules.encoder).__name__ == "StatisticsPooling":
             enc_out = self.modules.encoder(in_embs, wav_lens)
             enc_out = enc_out.view(enc_out.shape[0], -1).unsqueeze(1)
@@ -116,7 +117,7 @@ class EmoIdBrain(sb.Brain):
                 raise NotImplementedError
 
             optimizer = self.optimizer.__class__.__name__
-                        # The train_logger writes a summary to stdout and to the logfile.
+            # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
                 {"Epoch": epoch, "lr": lr},
                 train_stats={"loss": self.train_loss},
@@ -135,6 +136,7 @@ class EmoIdBrain(sb.Brain):
                 test_stats=stats,
             )
 
+
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class.
     It also defines the data processing pipeline through user-defined
@@ -152,7 +154,7 @@ def dataio_prep(hparams):
         Contains two keys, "train" and "valid" that correspond
         to the appropriate DynamicItemDataset object.
     """
-    
+
     # Define audio pipeline
     @sb.utils.data_pipeline.takes("wav")
     @sb.utils.data_pipeline.provides("sig")
@@ -236,7 +238,7 @@ if __name__ == "__main__":
         hyperparams_to_save=hparams_file,
         overrides=overrides,
     )
- 
+
     from iemocap_prepare import prepare_data  # noqa E402
 
     # Data preparation
@@ -298,7 +300,6 @@ if __name__ == "__main__":
     # stopped at any point, and will be resumed on next call.
     # Measure time
     start_time = time.time()  # Start the timer
-    
 
     emo_id_brain.fit(
         epoch_counter=emo_id_brain.hparams.epoch_counter,
