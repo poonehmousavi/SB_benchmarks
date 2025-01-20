@@ -82,19 +82,19 @@ out_n_neurons: 1211  #1211 for vox1  # 5994 for vox2, 7205 for vox1+vox2
 
 ############################## models ################################
 tokens_loader: !new:utils.tokens.TokensLoader
-   data_path: !ref <tokens_folder>
+    data_path: !ref <tokens_folder>
 
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
-   num_codebooks: !ref <num_codebooks>
-   vocab_size: !ref <vocab_size>
-   emb_dim: !ref <encoder_dim>
-   # hidden_dim: !ref <encoder_dim>
-   freeze: !ref <freeze_embedding>
-   init: !ref <pretrain_embeddings>
+    num_codebooks: !ref <num_codebooks>
+    vocab_size: !ref <vocab_size>
+    emb_dim: !ref <encoder_dim>
+    # hidden_dim: !ref <encoder_dim>
+    freeze: !ref <freeze_embedding>
+    init: !ref <pretrain_embeddings>
 
 attention_mlp: !new:model.custom_model.AttentionMLP
-   input_dim: !ref <encoder_dim>
-   hidden_dim: !ref <encoder_dim>
+    input_dim: !ref <encoder_dim>
+    hidden_dim: !ref <encoder_dim>
 
 
 encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
@@ -111,15 +111,15 @@ classifier: !new:speechbrain.lobes.models.ECAPA_TDNN.Classifier
     out_neurons: !ref <out_n_neurons>
 
 modules:
-   encoder: !ref <encoder>
-   classifier: !ref <classifier>
-   attention_mlp: !ref <attention_mlp>
-   # tokenizer: !ref <tokenizer>
-   discrete_embedding_layer: !ref <discrete_embedding_layer>
+    encoder: !ref <encoder>
+    classifier: !ref <classifier>
+    attention_mlp: !ref <attention_mlp>
+    # tokenizer: !ref <tokenizer>
+    discrete_embedding_layer: !ref <discrete_embedding_layer>
 
 
 model: !new:torch.nn.ModuleList
-   - [!ref <encoder>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
+    - [!ref <encoder>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
 
 ####################### Decoding & optimiser ###########################
 compute_cost: !new:speechbrain.nnet.losses.LogSoftmaxWrapper
@@ -153,8 +153,8 @@ error_stats: !name:speechbrain.utils.metric_stats.MetricStats
         reduction: batch
 
 checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
-   checkpoints_dir: !ref <save_folder>
-   recoverables:
-      model: !ref <model>
-      scheduler: !ref <scheduler>
-      counter: !ref <epoch_counter>
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        model: !ref <model>
+        scheduler: !ref <scheduler>
+        counter: !ref <epoch_counter>

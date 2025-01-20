@@ -1,4 +1,3 @@
-
 # ############################################################################
 # Model: "Intent" classification
 # Encoder: LSTM + Linear
@@ -54,14 +53,12 @@ valid_dataloader_opts:
 test_dataloader_opts:
    batch_size: !ref <test_batch_size>
 
-
 ####################### Model parameters ###########################
 # Tokenizer parameters
 # These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
 vocab_size: 1024
 num_codebooks: 2
 sample_rate: 24000
-
 
 # Feature parameters
 encoder_dim: 1024
@@ -148,7 +145,6 @@ scheduler: !new:speechbrain.nnet.schedulers.NewBobScheduler
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
    limit: !ref <number_of_epochs>
 
-
 ############################## Logging and Pretrainer ##########################
 checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
    checkpoints_dir: !ref <save_folder>
@@ -163,6 +159,3 @@ error_stats: !name:speechbrain.utils.metric_stats.MetricStats
 
 train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
    save_file: !ref <train_log>
-
-
-
