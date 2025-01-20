@@ -1,5 +1,5 @@
 # ############################################################################
-# Auido Tokenizer: Speech Tokenizer
+# Auido Tokenizer: WavTokenizer
 # Extraction: SLURP
 # Authors: Pooneh Mousavi 2024
 # ############################################################################
@@ -7,7 +7,7 @@
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/speech_tokenizer
+output_folder: !ref results/wavtokenizer
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
@@ -30,17 +30,24 @@ dataloader_opts:
   shuffle: True
   num_workers: !ref <num_workers>
 
-vocab_size: 1024
-num_codebooks: 8
-sample_rate: 16000
-encoder_dim: 1024
-freeze_embedding: False
+####################### Model parameters ###########################
+# Tokenizer parameters
+# WavTokenizer parameters
+model_hub: novateur/WavTokenizer-medium-music-audio-75token
+config: wavtokenizer_mediumdata_music_audio_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml
+checkpoint: wavtokenizer_medium_music_audio_320_24k_v2.ckpt
+sample_rate: 24000
 save_embedding: False
+num_codebooks: 1
+vocab_size: 4096
 
-# EnCodec model (see https://huggingface.co/docs/transformers/v4.31.0/en/model_doc/encodec)
-tokenizer: !new:utils.tokenizer_interface.SpeechTokenizerWrapper
-  source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
+# wavtokenizer model
+tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
+  source: !ref <model_hub>
   save_path: !ref <save_folder>
+  checkpoint: !ref <checkpoint>
+  config: !ref <config>
+  freeze: True
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

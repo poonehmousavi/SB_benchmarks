@@ -1,7 +1,7 @@
 # ############################################################################
-# Auido Tokenizer: Wavtokenizer
-# Extraction: Librispeech 960h
-# Authors: Jarod Duret 2024
+# Auido Tokenizer: WavTokenizer
+# Extraction: VoiceCeleb
+# Authors: Pooneh Mousavi 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
@@ -12,16 +12,17 @@ save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
-data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
-train_splits: ["train-clean-100"] #, "train-clean-360", "train-other-500"
-dev_splits: ["dev-clean"]
-test_splits: ["dev-clean", "test-clean", "test-other"]
+data_folder: !PLACEHOLDER  # e.g. /path/to/Voxceleb
+# train_annotation: !ref <save_folder>/train.csv
+# valid_annotation: !ref <save_folder>/dev.csv
+
+verification_file: https://www.robots.ox.ac.uk/~vgg/data/voxceleb/meta/veri_test2.txt #path/to/veri_test2.txt
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
-test_csv:
-  - !ref <output_folder>/test-clean.csv
-  - !ref <output_folder>/test-other.csv
+train_annotation: !ref <save_folder>/train.csv
+enrol_annotation: !ref <save_folder>/enrol.csv
+test_annotation: !ref <save_folder>/test.csv
+valid_annotation: !ref  <save_folder>/dev.csv
+sentence_len: 3
 
 batch_size: 1
 num_workers: 8
@@ -51,8 +52,6 @@ tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
   save_path: !ref <save_folder>
   checkpoint: !ref <checkpoint>
   config: !ref <config>
-  freeze: True
-
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

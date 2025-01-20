@@ -1,7 +1,7 @@
 # ############################################################################
-# Auido Tokenizer: Wavtokenizer
-# Extraction: Librispeech 960h
-# Authors: Jarod Duret 2024
+# Auido Tokenizer: WavTokenizer
+# Extraction: Google Speech Command
+# Authors: Pooneh Mousavi 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
@@ -12,16 +12,21 @@ save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
-data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
-train_splits: ["train-clean-100"] #, "train-clean-360", "train-other-500"
-dev_splits: ["dev-clean"]
-test_splits: ["dev-clean", "test-clean", "test-other"]
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/GSC
+train_annotation: !ref <output_folder>/train.csv
+valid_annotation: !ref <output_folder>/valid.csv
+test_annotation: !ref <output_folder>/test.csv
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
-test_csv:
-  - !ref <output_folder>/test-clean.csv
-  - !ref <output_folder>/test-other.csv
+
+# Use 12 for V2 12 task and 35 for V2 35 task
+number_of_commands: 12
+# Percentage of files used for validation and test
+validation_percentage: 10
+testing_percentage: 10
+# Percentage of unknown and silence examples
+# (relative to total of known word samples) to include
+percentage_unknown: 10 # Set this to 0 for the V2 35 task
+percentage_silence: 10 # Set this to 0 for the V2 35 task
 
 batch_size: 1
 num_workers: 8
@@ -52,7 +57,6 @@ tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
   checkpoint: !ref <checkpoint>
   config: !ref <config>
   freeze: True
-
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

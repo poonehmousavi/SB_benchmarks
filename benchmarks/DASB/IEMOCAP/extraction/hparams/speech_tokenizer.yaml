@@ -24,7 +24,7 @@ different_speakers: True
 # Change this value and run this value 10 times and take the mean of it
 test_spk_id: 1
 
-batch_size: 8
+batch_size: 1
 num_workers: 8
 src_key: wav
 id_key: id

@@ -7,7 +7,7 @@
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/encodec
+output_folder: !ref results/sqcodec
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
@@ -23,7 +23,7 @@ test_csv:
   - !ref <output_folder>/test-clean.csv
   - !ref <output_folder>/test-other.csv
 
-batch_size: 8
+batch_size: 1
 num_workers: 8
 src_key: wav
 id_key: id
@@ -34,17 +34,18 @@ dataloader_opts:
   shuffle: True
   num_workers: !ref <num_workers>
 
-# EnCodec parameters
+####################### Model parameters ###########################
+# Tokenizer parameters
 config: config.yaml
 checkpoint: ckpt_00190000.pth
 sample_rate: 16000
 save_embedding: False
-num_codebooks : 4
-save_path: /home/ubuntu/sq-codec/SQ-Codec
+num_codebooks: 4
+toeknzier_save_path: !PLACEHOLDER
 
-# wavtokenizer model 
+# wavtokenizer model
 tokenizer: !new:utils.tokenizer_interface.SQCodecTokenizer
-  save_path: !ref <save_path>
+  save_path: !ref <toeknzier_save_path>
   checkpoint: !ref <checkpoint>
   config: !ref <config>
 

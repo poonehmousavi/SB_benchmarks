@@ -76,7 +76,7 @@ if __name__ == "__main__":
     tokens_extractor.extract_tokens(
         merged_dataset,
         hparams["num_codebooks"],
-        (save_folder / "librispeech").as_posix(),
+        (save_folder / "iemocap").as_posix(),
     )
 
     if hparams["save_embedding"]:

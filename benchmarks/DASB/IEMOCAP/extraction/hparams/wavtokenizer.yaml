@@ -1,27 +1,28 @@
 # ############################################################################
-# Auido Tokenizer: Mimi
-# Extraction: Librispeech 960h
-# Authors: Jarod Duret 2024
+# Auido Tokenizer: Wavtokenizer
+# Extraction: IEMOCAP
+# Authors: Pooneh Mousavi 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/mimi
+output_folder: !ref results/wavtokenizer
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
-data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
-train_splits: ["train-clean-100"] #, "train-clean-360", "train-other-500"
-dev_splits: ["dev-clean"]
-test_splits: ["dev-clean", "test-clean", "test-other"]
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/IEMOCAP_full_release
+train_annotation: !ref <output_folder>/train.json
+valid_annotation: !ref <output_folder>/valid.json
+test_annotation: !ref <output_folder>/test.json
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
-test_csv:
-  - !ref <output_folder>/test-clean.csv
-  - !ref <output_folder>/test-other.csv
+
+# different speakers for train, valid and test sets
+different_speakers: True
+# which speaker is used for test set, value from 1 to 10
+# Change this value and run this value 10 times and take the mean of it
+test_spk_id: 1
 
 batch_size: 1
 num_workers: 8
@@ -36,19 +37,22 @@ dataloader_opts:
 
 ####################### Model parameters ###########################
 # Tokenizer parameters
-model_hub: kyutai/mimi
-vocab_size: 1024
-num_codebooks: 32
+# WavTokenizer parameters
+model_hub: novateur/WavTokenizer-medium-music-audio-75token
+config: wavtokenizer_mediumdata_music_audio_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml
+checkpoint: wavtokenizer_medium_music_audio_320_24k_v2.ckpt
 sample_rate: 24000
-# Feature parameters
-encoder_dim: 1024
 save_embedding: False
+num_codebooks: 1
+vocab_size: 4096
 
-tokenizer: !new:utils.tokenizer_interface.MimiTokenizer
+# wavtokenizer model 
+tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
   source: !ref <model_hub>
   save_path: !ref <save_folder>
-  num_codebooks: !ref <num_codebooks>
-
+  checkpoint: !ref <checkpoint>
+  config: !ref <config>
+  freeze: True
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

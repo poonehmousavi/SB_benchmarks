@@ -1,27 +1,32 @@
 # ############################################################################
-# Auido Tokenizer: Wavtokenizer
-# Extraction: Librispeech 960h
-# Authors: Jarod Duret 2024
+# Auido Tokenizer: SQCodec
+# Extraction: Google Speech Command
+# Authors: Pooneh Mousavi 2024
 # ############################################################################
 # Seed needs to be set at top of yaml, before objects with parameters are made
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-output_folder: !ref results/wavtokenizer
+output_folder: !ref results/sqcodec
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
-data_folder: !PLACEHOLDER  # e.g., /path/to/LibriSpeech
-train_splits: ["train-clean-100"] #, "train-clean-360", "train-other-500"
-dev_splits: ["dev-clean"]
-test_splits: ["dev-clean", "test-clean", "test-other"]
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/GSC
+train_annotation: !ref <output_folder>/train.csv
+valid_annotation: !ref <output_folder>/valid.csv
+test_annotation: !ref <output_folder>/test.csv
 skip_prep: False
-train_csv: !ref <output_folder>/train.csv
-valid_csv: !ref <output_folder>/dev-clean.csv
-test_csv:
-  - !ref <output_folder>/test-clean.csv
-  - !ref <output_folder>/test-other.csv
+
+# Use 12 for V2 12 task and 35 for V2 35 task
+number_of_commands: 12
+# Percentage of files used for validation and test
+validation_percentage: 10
+testing_percentage: 10
+# Percentage of unknown and silence examples
+# (relative to total of known word samples) to include
+percentage_unknown: 10 # Set this to 0 for the V2 35 task
+percentage_silence: 10 # Set this to 0 for the V2 35 task
 
 batch_size: 1
 num_workers: 8
@@ -36,23 +41,18 @@ dataloader_opts:
 
 ####################### Model parameters ###########################
 # Tokenizer parameters
-# WavTokenizer parameters
-model_hub: novateur/WavTokenizer-medium-music-audio-75token
-config: wavtokenizer_mediumdata_music_audio_frame75_3s_nq1_code4096_dim512_kmeans200_attn.yaml
-checkpoint: wavtokenizer_medium_music_audio_320_24k_v2.ckpt
-sample_rate: 24000
+config: config.yaml
+checkpoint: ckpt_00190000.pth
+sample_rate: 16000
 save_embedding: False
-num_codebooks: 1
-vocab_size: 4096
+num_codebooks: 4
+toeknzier_save_path: !PLACEHOLDER
 
 # wavtokenizer model
-tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
-  source: !ref <model_hub>
-  save_path: !ref <save_folder>
+tokenizer: !new:utils.tokenizer_interface.SQCodecTokenizer
+  save_path: !ref <toeknzier_save_path>
   checkpoint: !ref <checkpoint>
   config: !ref <config>
-  freeze: True
-
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>
