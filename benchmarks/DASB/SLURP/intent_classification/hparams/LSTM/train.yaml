@@ -30,8 +30,7 @@ pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, th
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
-batch_size_exponent: 4 # @orion_step1: --batch_size_exponent~"uniform(2, 4,discrete=True)"
-batch_size: !ref 2 ** <batch_size_exponent>
+batch_size: 8
 test_batch_size: 1
 precision: fp32
 
@@ -68,6 +67,7 @@ freeze_embedding: False
 
 # Model parameters
 output_neurons: 18 # index(eos/bos) = 0
+dnn_layers: 2 #  @orion_step1: --dnn_layers~"uniform(1, 4,discrete=True)"
 
 # Decoding parameters
 bos_index: 0
@@ -100,7 +100,7 @@ encoder: !new:speechbrain.nnet.containers.Sequential
       input_size: !ref <encoder_dim>
       bidirectional: True
       hidden_size: !ref <encoder_dim>
-      num_layers: 2
+      num_layers: !ref <dnn_layers>
    linear: !new:speechbrain.nnet.linear.Linear
       input_size: !ref <encoder_dim> * 2
       n_neurons: !ref <encoder_dim>

@@ -43,8 +43,7 @@ pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, th
 
 ####################### Training Parameters ####################################
 number_of_epochs: 20
-batch_size_exponent: 1 # @orion_step1: --batch_size_exponent~"uniform(3, 6,discrete=True)"
-batch_size: !ref 2 ** <batch_size_exponent>
+batch_size: 8
 lr_model: 0.001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
 
 ckpt_interval_minutes: 15 # save checkpoint every N min
