@@ -13,9 +13,10 @@ train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g.,  /path/to/GSC
-train_annotation: !ref <output_folder>/train.csv
-valid_annotation: !ref <output_folder>/valid.csv
-test_annotation: !ref <output_folder>/test.csv
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
+train_annotation: !ref <cached_data_folder>/train.csv
+valid_annotation: !ref <cached_data_folder>/valid.csv
+test_annotation: !ref <cached_data_folder>/test.csv
 skip_prep: False
 
 # Use 12 for V2 12 task and 35 for V2 35 task

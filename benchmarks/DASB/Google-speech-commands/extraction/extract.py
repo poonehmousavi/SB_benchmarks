@@ -115,7 +115,7 @@ if __name__ == "__main__":
             prepare_GSC,
             kwargs={
                 "data_folder": hparams["data_folder"],
-                "save_folder": hparams["output_folder"],
+                "save_folder": hparams["cached_data_folder"],
                 "validation_percentage": hparams["validation_percentage"],
                 "testing_percentage": hparams["testing_percentage"],
                 "percentage_unknown": hparams["percentage_unknown"],
