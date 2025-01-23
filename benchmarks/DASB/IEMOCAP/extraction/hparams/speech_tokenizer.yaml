@@ -13,9 +13,10 @@ train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g.,  /path/to/IEMOCAP_full_release
-train_annotation: !ref <output_folder>/train.json
-valid_annotation: !ref <output_folder>/valid.json
-test_annotation: !ref <output_folder>/test.json
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
+train_annotation: !ref <cached_data_folder>/train.json
+valid_annotation: !ref <cached_data_folder>/valid.json
+test_annotation: !ref <cached_data_folder>/test.json
 skip_prep: False
 
 # different speakers for train, valid and test sets
@@ -46,6 +47,7 @@ save_embedding: False
 tokenizer: !new:utils.tokenizer_interface.SpeechTokenizer
   source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
   save_path: !ref <save_folder>
+  sample_rate: !ref <sample_rate
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>
