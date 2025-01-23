@@ -13,10 +13,11 @@ train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g.,  /path/to/SLURP
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
 train_splits: ["train_real"]
-train_annotation: !ref <output_folder>/train-type=direct.csv
-valid_annotation: !ref <output_folder>/devel-type=direct.csv
-test_annotation: !ref <output_folder>/test-type=direct.csv
+train_annotation: !ref <cached_data_folder>/train-type=direct.csv
+valid_annotation: !ref <cached_data_folder>/devel-type=direct.csv
+test_annotation: !ref <cached_data_folder>/test-type=direct.csv
 skip_prep: False
 
 batch_size: 1
@@ -37,13 +38,14 @@ checkpoint: ckpt_00190000.pth
 sample_rate: 16000
 save_embedding: False
 num_codebooks: 4
-toeknzier_save_path: !PLACEHOLDER
+tokenizer_save_path: !PLACEHOLDER
 
 # wavtokenizer model
 tokenizer: !new:utils.tokenizer_interface.SQCodecTokenizer
-  save_path: !ref <toeknzier_save_path>
+  save_path: !ref <tokenizer_save_path>
   checkpoint: !ref <checkpoint>
   config: !ref <config>
+  sample_rate: !ref <sample_rate>
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

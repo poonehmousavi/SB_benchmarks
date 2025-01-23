@@ -13,10 +13,11 @@ train_log: !ref <output_folder>/extraction_log.txt
 
 # Data files
 data_folder: !PLACEHOLDER  # e.g.,  /path/to/SLURP
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
 train_splits: ["train_real"]
-train_annotation: !ref <output_folder>/train-type=direct.csv
-valid_annotation: !ref <output_folder>/devel-type=direct.csv
-test_annotation: !ref <output_folder>/test-type=direct.csv
+train_annotation: !ref <cached_data_folder>/train-type=direct.csv
+valid_annotation: !ref <cached_data_folder>/devel-type=direct.csv
+test_annotation: !ref <cached_data_folder>/test-type=direct.csv
 skip_prep: False
 
 batch_size: 1
@@ -41,6 +42,7 @@ save_embedding: False
 tokenizer: !new:utils.tokenizer_interface.SpeechTokenizerWrapper
   source: fnlp/SpeechTokenizer  # Only the 24kHz version supports mono audio
   save_path: !ref <save_folder>
+  sample_rate: !ref <sample_rate>
 
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>

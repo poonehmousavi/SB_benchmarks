@@ -43,7 +43,7 @@ if __name__ == "__main__":
             prepare_SLURP,
             kwargs={
                 "data_folder": hparams["data_folder"],
-                "save_folder": hparams["output_folder"],
+                "save_folder": hparams["cached_data_folder"],
                 "train_splits": hparams["train_splits"],
                 "slu_type": "direct",
                 "skip_prep": hparams["skip_prep"],
