@@ -12,6 +12,7 @@ import sys
 import logging
 import torchaudio
 import pathlib as pl
+import random
 import speechbrain as sb
 from speechbrain.dataio.dataset import DynamicItemDataset
 from speechbrain.utils.data_utils import download_file
@@ -28,14 +29,25 @@ logger = logging.getLogger(__name__)
 
 @sb.utils.data_pipeline.takes("wav", "start", "stop")
 @sb.utils.data_pipeline.provides("sig")
-def audio_pipeline(wav, start, stop):
-    start = int(start)
-    stop = int(stop)
+def audio_pipeline(wav, start, stop, duration):
+    snt_len_sample = int(
+        hparams["original_sample_rate"] * hparams["sentence_len"]
+    )
+
+    if hparams["random_chunk"]:
+        duration_sample = int(duration * hparams["original_sample_rate"])
+        start = random.randint(0, duration_sample - snt_len_sample)
+        stop = start + snt_len_sample
+    else:
+        start = int(start)
+        stop = int(stop)
     num_frames = stop - start
-    sig, fs = torchaudio.load(wav, num_frames=num_frames, frame_offset=start)
+    sig, fs = torchaudio.load(
+            wav, num_frames=num_frames, frame_offset=start
+    )
     info = torchaudio.info(wav)
     resampled = torchaudio.transforms.Resample(
-        info.sample_rate, hparams["sample_rate"],
+         info.sample_rate, hparams["sample_rate"],
     )(sig)
     resampled = resampled.transpose(0, 1).squeeze(1)
     return resampled
@@ -68,7 +80,7 @@ if __name__ == "__main__":
             prepare_voxceleb,
             kwargs={
                 "data_folder": hparams["data_folder"],
-                "save_folder": hparams["save_folder"],
+                "save_folder": hparams["cached_data_folder"],
                 "verification_pairs_file": veri_file_path,
                 "splits": ["train", "dev", "test"],
                 "split_ratio": [90, 10],
