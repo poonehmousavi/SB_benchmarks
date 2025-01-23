@@ -25,7 +25,6 @@ test_csv:
   - !ref <cached_data_folder>/test-other.csv
 
 batch_size: 1
-batch_size: 1
 num_workers: 8
 src_key: wav
 id_key: id
