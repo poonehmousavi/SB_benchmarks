@@ -210,7 +210,7 @@ def prepare_GSC(
             splits[split]["stop"].append(16000)
 
             splits[split]["wav"].append(
-                os.path.join(data_folder, command, filename)
+                os.path.join("$data_root/", command, filename)
             )
 
             splits[split]["spk_id"].append(re.sub(r"_.*", "", filename))
@@ -345,6 +345,9 @@ def generate_silence_data(
                         "/" + str(random_start) + "_" + str(i),
                         re.sub(r".+?(?=_background_noise_)", "", silence_path),
                     )
+                )
+                silence_path = re.sub(
+                    r"^.?_background_noise_", "$data_root/", silence_path
                 )
 
                 splits[split]["duration"].append(1.0)

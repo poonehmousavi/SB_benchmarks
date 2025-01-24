@@ -5,6 +5,7 @@ Download: http://www.robots.ox.ac.uk/~vgg/data/voxceleb/
 """
 
 import os
+import re
 import csv
 import logging
 import glob
@@ -359,6 +360,7 @@ def prepare_csv(seg_dur, wav_lst, csv_file, random_segment=False, amp_th=0):
         # Reading the signal (to retrieve duration in seconds)
         signal, fs = torchaudio.load(wav_file)
         signal = signal.squeeze(0)
+        wav_file = re.sub(r".*?/wav", r"$data_root/wav", wav_file)
 
         if random_segment:
             audio_duration = signal.shape[0] / SAMPLERATE
@@ -466,11 +468,12 @@ def prepare_csv_enrol_test(data_folders, save_folder, verification_pairs_file):
             start_sample = 0
             stop_sample = signal.shape[0]
             [spk_id, sess_id, utt_id] = wav.split("/")[-3:]
+            wav_file = re.sub(r".*?/wav", r"$data_root/wav", wav)
 
             csv_line = [
                 id,
                 audio_duration,
-                wav,
+                wav_file,
                 start_sample,
                 stop_sample,
                 spk_id,

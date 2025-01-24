@@ -55,7 +55,7 @@ tokenizer: !new:utils.tokenizer_interface.MimiTokenizer
   save_path: !ref <save_folder>
   num_codebooks: !ref <num_codebooks>
   sample_rate: !ref <sample_rate>
-  
+
 tokens_extractor: !new:utils.tokens.TokensExtractor
   tokenizer: !ref <tokenizer>
   sample_rate: !ref <sample_rate>

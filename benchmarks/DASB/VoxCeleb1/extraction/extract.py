@@ -42,12 +42,10 @@ def audio_pipeline(wav, start, stop, duration):
         start = int(start)
         stop = int(stop)
     num_frames = stop - start
-    sig, fs = torchaudio.load(
-            wav, num_frames=num_frames, frame_offset=start
-    )
+    sig, fs = torchaudio.load(wav, num_frames=num_frames, frame_offset=start)
     info = torchaudio.info(wav)
     resampled = torchaudio.transforms.Resample(
-         info.sample_rate, hparams["sample_rate"],
+        info.sample_rate, hparams["sample_rate"],
     )(sig)
     resampled = resampled.transpose(0, 1).squeeze(1)
     return resampled

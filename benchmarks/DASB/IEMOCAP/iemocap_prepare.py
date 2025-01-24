@@ -117,6 +117,7 @@ def create_json(wav_list, json_file):
         duration = signal.shape[0] / SAMPLERATE
 
         uttid = wav_file.split("/")[-1][:-4]
+        wav_file = re.sub(r".*?Session", r"{data_root}/Session", wav_file)
 
         # Create entry for this utterance
         json_dict[uttid] = {

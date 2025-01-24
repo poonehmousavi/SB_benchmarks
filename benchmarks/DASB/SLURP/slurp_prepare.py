@@ -127,10 +127,12 @@ def prepare_SLURP(
                     path = os.path.join(
                         data_folder, audio_folder, recording["file"]
                     )
+                    wav_file = os.path.join(
+                        "$data_root", audio_folder, recording["file"]
+                    )
                     signal = read_audio(path)
                     duration.append(signal.shape[0] / 16000)
-
-                    wav.append(path)
+                    wav.append(wav_file)
                     wav_format.append("flac")
                     wav_opts.append(None)
 

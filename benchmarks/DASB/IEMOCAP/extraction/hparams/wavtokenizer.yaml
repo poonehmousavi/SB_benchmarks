@@ -47,7 +47,7 @@ save_embedding: False
 num_codebooks: 1
 vocab_size: 4096
 
-# wavtokenizer model 
+# wavtokenizer model
 tokenizer: !new:utils.tokenizer_interface.WavTokenizerWrapper
   source: !ref <model_hub>
   save_path: !ref <save_folder>

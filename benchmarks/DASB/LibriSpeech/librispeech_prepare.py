@@ -292,7 +292,7 @@ def process_line(wav_file, text_dict) -> LSRow:
 
     info = read_audio_info(wav_file)
     duration = info.num_frames / info.sample_rate
-    wav_file = re.sub(r'^.*LibriSpeech', '$data_root/', wav_file)
+    wav_file = re.sub(r"^.*LibriSpeech", "$data_root/", wav_file)
 
     return LSRow(
         snt_id=snt_id,

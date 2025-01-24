@@ -15,8 +15,6 @@ train_log: !ref <output_folder>/extraction_log.txt
 data_folder: !PLACEHOLDER  # e.g. /path/to/Voxceleb
 cached_data_folder: !ref <output_folder> # e.g., path/to/cache
 
-verification_file: https://www.robots.ox.ac.uk/~vgg/data/voxceleb/meta/veri_test2.txt #path/to/veri_test2.txt
-skip_prep: False
 train_annotation: !ref <cached_data_folder>/train.csv
 enrol_annotation: !ref <cached_data_folder>/enrol.csv
 test_annotation: !ref <cached_data_folder>/test.csv
@@ -24,6 +22,7 @@ valid_annotation: !ref  <cached_data_folder>/dev.csv
 sentence_len: 3
 original_sample_rate: 16000
 random_chunk: True
+skip_prep: False
 
 batch_size: 1
 num_workers: 8
