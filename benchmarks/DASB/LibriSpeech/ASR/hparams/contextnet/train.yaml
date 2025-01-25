@@ -54,7 +54,7 @@ valid_search_interval: 1
 avg_checkpoints: 10 # Number of checkpoints to average for evaluation
 cache_size: 1.e+10
 
-lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001,0.5)"
+lr_model: 0.0001 # @orion_step1: --lr_model~"choices([0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00001])"
 weight_decay: 0.0005
 
 
