@@ -427,10 +427,10 @@ if __name__ == "__main__":
 
     # Download verification list (to exlude verification sentences from train)
     veri_file_path = os.path.join(
-        hparams["save_folder"], os.path.basename(hparams["verification_file"])
+        hparams["cached_data_folder"], os.path.basename(hparams["verification_file"])
     )
-    download_file(hparams["verification_file"], veri_file_path)
-
+    if not veri_file_path.exists():
+        download_file(hparams["verification_file"], veri_file_path)
     # Dataset prep (parsing VoxCeleb and annotation into csv files)
     from voxceleb_prepare import prepare_voxceleb  # noqa
 
@@ -439,7 +439,7 @@ if __name__ == "__main__":
             prepare_voxceleb,
             kwargs={
                 "data_folder": hparams["data_folder"],
-                "save_folder": hparams["save_folder"],
+                "save_folder": hparams["cached_data_folder"],
                 "verification_pairs_file": veri_file_path,
                 "splits": ["train", "dev", "test"],
                 "split_ratio": [90, 10],
