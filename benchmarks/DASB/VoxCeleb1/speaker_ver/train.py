@@ -429,7 +429,7 @@ if __name__ == "__main__":
     veri_file_path = os.path.join(
         hparams["cached_data_folder"], os.path.basename(hparams["verification_file"])
     )
-    if not os.path.exists(veri_file_path)::
+    if not os.path.exists(veri_file_path):
         download_file(hparams["verification_file"], veri_file_path)
     # Dataset prep (parsing VoxCeleb and annotation into csv files)
     from voxceleb_prepare import prepare_voxceleb  # noqa
