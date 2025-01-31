@@ -275,7 +275,7 @@ class SpeakerBrain(sb.core.Brain):
         if stage == sb.Stage.TRAIN and hasattr(
             self.hparams.scheduler, "on_batch_end"
         ):
-            self.hparams.scheduler.on_batch_end(self.model_optimizer)
+            self.hparams.scheduler.on_batch_end(self.optimizer)
 
         if stage != sb.Stage.TRAIN:
             self.error_metrics.append(uttid, predictions, spkid, lens)
