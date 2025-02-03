@@ -156,4 +156,4 @@ if __name__ == "__main__":
             final_metric = 1 - final_metric
         report_objective(final_metric)
     except Exception as e:
-        logger.warn(f"Error processing key '{k}': {e}")
+        logger.warning(f"Error processing aggregation: {e}")
