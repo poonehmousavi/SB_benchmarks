@@ -206,4 +206,4 @@ done
 
 
 echo 'Final Results (Performance Aggregation)'
-python utils/aggregate_results.py $output_folder "$eval_metric" | echo "Warning: aggregate_results.py failed. Continuing..."  | tee -a  $output_folder/aggregated_performance.txt
+python utils/aggregate_results.py $output_folder "$eval_metric" | tee -a  $output_folder/aggregated_performance.txt
