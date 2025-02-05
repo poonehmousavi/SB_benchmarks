@@ -145,7 +145,7 @@ if __name__ == "__main__":
         # print aggregated metrics
         aggregate_metrics(prototype, metrics)
 
-        final_metric = metrics[-1, :].mean()
+        final_metric = metrics.mean(axis=1).min()
 
         # Report final metric to Orion
         # Remember: orion expects metrics to be minimized!
@@ -157,3 +157,4 @@ if __name__ == "__main__":
         report_objective(final_metric)
     except Exception as e:
         logger.warning(f"Error processing aggregation: {e}")
+        report_objective(float('inf'))

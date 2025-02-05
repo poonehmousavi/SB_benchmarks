@@ -40,7 +40,7 @@ precision: fp32
 number_of_epochs: 20
 batch_size: 8
 test_batch_size: 1
-lr_model: 0.0001 # @orion_step1: --lr_model~"choices([0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00001])"
+lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001, 0.1)"
 
 ckpt_interval_minutes: 15 # save checkpoint every N min
 
