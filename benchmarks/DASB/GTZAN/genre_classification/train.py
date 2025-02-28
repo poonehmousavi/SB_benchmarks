@@ -1,33 +1,30 @@
-#!/usr/bin/env/python3
-"""Recipe for "direct" (speech -> scenario) "Intent" classification using SLURP Dataset.
-18 Scenarios classes are present in SLURP (calendar, email)
-We encode input waveforms into features using a discrete tokens.
-The probing is done using either a  RNN layer or time-pooling and followed by a linear classifier.
+#!/usr/bin/env python3
+""" Recipe for training an event sound  recognition system from speech data only using ESC50.
+The system classifies 10 events starting from a discrete tokens.
+The probing head is ECAPA-TDNN, Lineae.
 
 Authors
  * Pooneh Mousavi 2024
 """
+
 import os
+import torch
+import torchaudio
 import sys
 import time
-import torchaudio
-import logging
-from hyperpyyaml import load_hyperpyyaml
 import speechbrain as sb
-from speechbrain.utils.distributed import run_on_main
-import torch
+from hyperpyyaml import load_hyperpyyaml
+import logging
 
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.append(base_dir)
 
-
 logger = logging.getLogger(__name__)
 
 
-class IntentIdBrain(sb.Brain):
+class MusGenreBrain(sb.Brain):
     def compute_forward(self, batch, stage):
         """Computation pipeline based on a encoder + emotion classifier."""
-
         batch = batch.to(self.device)
         wavs, wav_lens = batch.sig
         in_toks, _ = batch.speech_tokens
@@ -48,30 +45,27 @@ class IntentIdBrain(sb.Brain):
             )  # [B, T, D]
 
         # forward modules
-        if (
-            "encoder" in self.modules
-            and type(self.modules.encoder).__name__ == "Sequential"
-        ):
-            enc_out = self.modules.encoder(in_embs)
+        if type(self.modules.encoder).__name__ == "ECAPA_TDNN":
+            enc_out = self.modules.encoder(in_embs, wav_lens)
+
+        elif type(self.modules.encoder).__name__ == "StatisticsPooling":
+            enc_out = self.modules.encoder(in_embs, wav_lens)
+            enc_out = enc_out.view(enc_out.shape[0], -1).unsqueeze(1)
 
         else:
-            enc_out = in_embs
+            raise NotImplementedError
 
-        # last dim will be used for AdaptativeAVG pool
-
-        outputs = self.hparams.avg_pool(enc_out, wav_lens)
-        outputs = outputs.view(outputs.shape[0], -1)
-        outputs = self.modules.classifier(outputs)
-        outputs = self.hparams.log_softmax(outputs)
+        outputs = self.modules.classifier(enc_out)
+        outputs = self.hparams.log_softmax(enc_out)
         return outputs
 
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss using speaker-id as label."""
-        scenario_id, _ = batch.scenario_encoded
-        scenario_id = scenario_id.squeeze(1)
-        loss = self.hparams.compute_cost(predictions, scenario_id)
+        genreid, _ = batch.genre_encoded
+
+        loss = self.hparams.compute_cost(predictions, genreid)
         if stage != sb.Stage.TRAIN:
-            self.error_metrics.append(batch.id, predictions, scenario_id)
+            self.error_metrics.append(batch.id, predictions, genreid)
         return loss
 
     def on_stage_start(self, stage, epoch=None):
@@ -129,13 +123,12 @@ class IntentIdBrain(sb.Brain):
                 raise NotImplementedError
 
             optimizer = self.optimizer.__class__.__name__
-
-            # The train_logger writes a summary to stdout and to the logfile.
             epoch_stats = {
                 "epoch": epoch,
                 "lr": lr,
                 "optimizer": optimizer,
             }
+            # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
                 stats_meta=epoch_stats,
                 train_stats={"loss": self.train_loss},
@@ -172,44 +165,6 @@ def dataio_prep(hparams):
         Contains two keys, "train" and "valid" that correspond
         to the appropriate DynamicItemDataset object.
     """
-    data_folder = hparams["data_folder"]
-
-    train_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["csv_train"], replacements={"data_root": data_folder},
-    )
-
-    if hparams["sorting"] == "ascending":
-        # we sort training data to speed up training and get better results.
-        train_data = train_data.filtered_sorted(sort_key="duration")
-        # when sorting do not shuffle in dataloader ! otherwise is pointless
-        hparams["dataloader_opts"]["shuffle"] = False
-
-    elif hparams["sorting"] == "descending":
-        train_data = train_data.filtered_sorted(
-            sort_key="duration", reverse=True
-        )
-        # when sorting do not shuffle in dataloader ! otherwise is pointless
-        hparams["dataloader_opts"]["shuffle"] = False
-
-    elif hparams["sorting"] == "random":
-        pass
-
-    else:
-        raise NotImplementedError(
-            "sorting must be random, ascending or descending"
-        )
-
-    valid_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["csv_valid"], replacements={"data_root": data_folder},
-    )
-    valid_data = valid_data.filtered_sorted(sort_key="duration")
-
-    test_data = sb.dataio.dataset.DynamicItemDataset.from_csv(
-        csv_path=hparams["csv_test"], replacements={"data_root": data_folder},
-    )
-    test_data = test_data.filtered_sorted(sort_key="duration")
-
-    datasets = [train_data, valid_data, test_data]
 
     # Define audio pipeline
     @sb.utils.data_pipeline.takes("wav")
@@ -225,8 +180,7 @@ def dataio_prep(hparams):
         #         resampled = resampled.unsqueeze(0)
         return resampled
 
-    sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
-    # ]Define tokens pipeline:
+    #  Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
 
@@ -236,38 +190,45 @@ def dataio_prep(hparams):
         tokens = tokens_loader.tokens_by_uttid(id, num_codebooks=num_codebooks)
         return tokens
 
-    sb.dataio.dataset.add_dynamic_item(datasets, tokens_pipeline)
-
     # Initialization of the label encoder. The label encoder assignes to each
     # of the observed label a unique index (e.g, 'spk01': 0, 'spk02': 1, ..)
     label_encoder = sb.dataio.encoder.CategoricalEncoder()
 
     # Define label pipeline:
-    @sb.utils.data_pipeline.takes("semantics")
-    @sb.utils.data_pipeline.provides("scenario", "scenario_encoded")
-    def label_pipeline(semantics):
-        scenario = semantics.split("'")[3]
-        yield scenario
-        scenario_encoded = label_encoder.encode_label_torch(scenario)
-        yield scenario_encoded
+    @sb.utils.data_pipeline.takes("genre")
+    @sb.utils.data_pipeline.provides("genre", "genre_encoded")
+    def label_pipeline(genre):
+        yield genre
+        genre_encoded = label_encoder.encode_label_torch(genre)
+        yield genre_encoded
 
-    sb.dataio.dataset.add_dynamic_item(datasets, label_pipeline)
     # Define datasets. We also connect the dataset with the data processing
     # functions defined above.
-    sb.dataio.dataset.set_output_keys(
-        datasets,
-        ["id", "sig", "scenario", "scenario_encoded", "speech_tokens"],
-    )
+    datasets = {}
+    data_info = {
+        "train": hparams["train_annotation"],
+        "valid": hparams["valid_annotation"],
+        "test": hparams["test_annotation"],
+    }
+    for dataset in data_info:
+        datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_json(
+            json_path=data_info[dataset],
+            replacements={"data_root": hparams["data_folder"]},
+            dynamic_items=[audio_pipeline, tokens_pipeline, label_pipeline],
+            output_keys=["id", "sig", "speech_tokens", "genre_encoded"],
+        )
     # Load or compute the label encoder (with multi-GPU DDP support)
     # Please, take a look into the lab_enc_file to see the label to index
     # mappinng.
 
     lab_enc_file = os.path.join(hparams["save_folder"], "label_encoder.txt")
     label_encoder.load_or_create(
-        path=lab_enc_file, from_didatasets=[datasets[0]], output_key="scenario",
+        path=lab_enc_file,
+        from_didatasets=[datasets["train"]],
+        output_key="genre",
     )
 
-    return {"train": datasets[0], "valid": datasets[1], "test": datasets[2]}
+    return datasets
 
 
 # RECIPE BEGINS!
@@ -289,26 +250,20 @@ if __name__ == "__main__":
         overrides=overrides,
     )
 
-    if hparams["discrete_embedding_layer"].init:
-        hparams["discrete_embedding_layer"].init_embedding(
-            hparams["codec"]
-            .vocabulary[: hparams["num_codebooks"], :, :]
-            .flatten(0, 1)
+    from gtzan_prepare import prepare_gtzan  # noqa E402
+
+    # Data preparation
+    if not hparams["skip_prep"]:
+        sb.utils.distributed.run_on_main(
+            prepare_gtzan,
+            kwargs={
+                "data_folder": hparams["data_folder"],
+                "save_json_train": hparams["train_annotation"],
+                "save_json_valid": hparams["valid_annotation"],
+                "save_json_test": hparams["test_annotation"],
+                "skip_prep" : hparams["skip_prep"]
+            },
         )
-    from slurp_prepare import prepare_SLURP  # noqa
-
-    # multi-gpu (ddp) save data preparation
-    run_on_main(
-        prepare_SLURP,
-        kwargs={
-            "data_folder": hparams["data_folder"],
-            "save_folder": hparams["cached_data_folder"],
-            "train_splits": hparams["train_splits"],
-            "slu_type": "direct",
-            "skip_prep": hparams["skip_prep"],
-        },
-    )
-
     # Data preparation, to be run on only one process.
     # Create dataset objects "train", "valid", and "test".
     datasets = dataio_prep(hparams)
@@ -338,22 +293,8 @@ if __name__ == "__main__":
             embs = embs[indices]
         hparams["discrete_embedding_layer"].init_embedding(embs)
 
-    # Log number of parameters/buffers
-    model_params = sum(
-        [
-            x.numel()
-            for module in hparams["modules"].values()
-            for x in module.state_dict().values()
-        ]
-    )
-    hparams["train_logger"].log_stats(
-        stats_meta={
-            "Model parameters/buffers (M)": f"{model_params / 1e6:.2f}",
-        },
-    )
-
     # Initialize the Brain object to prepare for mask training.
-    ic_id_brain = IntentIdBrain(
+    mus_genre_brain  = MusGenreBrain(
         modules=hparams["modules"],
         opt_class=hparams["model_opt_class"],
         hparams=hparams,
@@ -367,8 +308,9 @@ if __name__ == "__main__":
     # stopped at any point, and will be resumed on next call.
     # Measure time
     start_time = time.time()  # Start the timer
-    ic_id_brain.fit(
-        epoch_counter=ic_id_brain.hparams.epoch_counter,
+
+    mus_genre_brain .fit(
+        epoch_counter=mus_genre_brain .hparams.epoch_counter,
         train_set=datasets["train"],
         valid_set=datasets["valid"],
         train_loader_kwargs=hparams["train_dataloader_opts"],
@@ -378,11 +320,9 @@ if __name__ == "__main__":
     # Calculate elapsed time
     elapsed_time = end_time - start_time
     logger.info(f"Model execution time: {elapsed_time:.6f} seconds")
-
     if hparams["testing"]:
-        # Testing
         # Load the best checkpoint for evaluation
-        test_stats = ic_id_brain.evaluate(
+        test_stats = mus_genre_brain .evaluate(
             test_set=datasets["test"],
             min_key="error_rate",
             test_loader_kwargs=hparams["test_dataloader_opts"],

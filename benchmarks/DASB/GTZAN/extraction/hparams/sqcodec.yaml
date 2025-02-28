@@ -1,0 +1,60 @@
+# ############################################################################
+# Auido Tokenizer: ESC50
+# Extraction: ESC50
+# Authors: Pooneh Mousavi 2024
+# ############################################################################
+# Seed needs to be set at top of yaml, before objects with parameters are made
+
+seed: 1986
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+output_folder: !ref results/sqcodec
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/extraction_log.txt
+
+# Data files
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/IEMOCAP_full_release
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
+train_annotation: !ref <cached_data_folder>/train.json
+valid_annotation: !ref <cached_data_folder>/valid.json
+test_annotation: !ref <cached_data_folder>/test.json
+skip_prep: False
+
+# different speakers for train, valid and test sets
+different_speakers: True
+# which speaker is used for test set, value from 1 to 10
+# Change this value and run this value 10 times and take the mean of it
+test_spk_id: 1
+
+batch_size: 1
+num_workers: 8
+src_key: wav
+id_key: id
+
+# Dataloader options
+dataloader_opts:
+  batch_size: !ref <batch_size>
+  shuffle: True
+  num_workers: !ref <num_workers>
+
+####################### Model parameters ###########################
+# Tokenizer parameters
+config: config.yaml
+checkpoint: ckpt_00190000.pth
+sample_rate: 16000
+save_embedding: False
+num_codebooks: 4
+tokenizer_save_path: !PLACEHOLDER
+
+# wavtokenizer model
+tokenizer: !new:utils.tokenizer_interface.SQCodecTokenizer
+  save_path: !ref <tokenizer_save_path>
+  checkpoint: !ref <checkpoint>
+  config: !ref <config>
+  sample_rate: !ref <sample_rate>
+
+tokens_extractor: !new:utils.tokens.TokensExtractor
+  tokenizer: !ref <tokenizer>
+  sample_rate: !ref <sample_rate>
+  src_key: !ref <src_key>
+  id_key: !ref <id_key>
+  dataloader_opts: !ref <dataloader_opts>
