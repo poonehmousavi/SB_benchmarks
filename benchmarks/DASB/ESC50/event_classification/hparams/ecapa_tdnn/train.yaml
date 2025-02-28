@@ -1,0 +1,149 @@
+# ############################################################################
+# Model: E2E Event Sound Classification
+# Encoder: ECAPA-TDNN
+# Training: ESC50
+# Authors:
+#     - Pooneh Mousavi 2024
+# ############################################################################
+# Seed needs to be set at top of yaml, before objects with parameters are made
+
+seed: 1986
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+
+# Dataset will be downloaded to the `data_original`
+data_folder: !PLACEHOLDER  # e.g.,  /path/to/ESC50
+audio_data_folder: !ref <data_folder>/audio
+output_folder: !ref results/ESC50/tokenizer_name/<seed>
+cached_data_folder: !ref <output_folder> # e.g., path/to/cache
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+testing: True # If set to True, the test evlaution is done, otherwise skipped.
+
+
+train_annotation: !ref <cached_data_folder>/train.json
+valid_annotation: !ref <cached_data_folder>/valid.json
+test_annotation: !ref <cached_data_folder>/test.json
+# To standardize results, UrbanSound8k has pre-separated samples into
+# 10 folds for multi-fold validation
+train_fold_nums: [1, 2, 3]
+valid_fold_nums: [4]
+test_fold_nums: [5]
+skip_prep: True
+
+tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
+pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
+####################### Training Parameters ####################################
+# Training parameters
+precision: fp32
+number_of_epochs: 200
+batch_size: 8
+test_batch_size: 1
+lr_model: 0.0001 # @orion_step1: --lr_model~"loguniform(0.00001, 0.1)"
+base_lr: 0.0002
+max_lr: !ref <lr_model>
+step_size: 65000
+
+ckpt_interval_minutes: 15 # save checkpoint every N min
+
+# Dataloader options
+train_dataloader_opts:
+    batch_size: !ref <batch_size>
+    shuffle: True
+    num_workers: 2  # 2 on linux but 0 works on windows
+    drop_last: False
+
+valid_dataloader_opts:
+    batch_size: !ref <batch_size>
+
+test_dataloader_opts:
+    batch_size: !ref <test_batch_size>
+
+
+####################### Model parameters ###########################
+# Tokenizer parameters
+# These parameters should be set according to the tokenizer used to extract tokens saved in <tokens_folder>.
+vocab_size: 1024
+num_codebooks: 2
+sample_rate: 24000
+
+# Feature parameters
+encoder_dim: 1024
+embedding_dim: !ref <encoder_dim> 
+# If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
+pretrain_embeddings: False
+freeze_embedding: False
+# if set to concat, you need to set embedding_dim to match the encoder_dim after concatenation. Eg, if you have 4 codebook, embedding_dim shoudl set to encoder_dim/4
+embedding_strg: att_pool # option are concat and att_pool
+
+# Number of classes
+out_n_neurons: 50 
+
+
+############################## models ################################
+tokens_loader: !new:utils.tokens.TokensLoader
+    data_path: !ref <tokens_folder>
+
+discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
+    num_codebooks: !ref <num_codebooks>
+    vocab_size: !ref <vocab_size>
+    emb_dim: !ref <embedding_dim>
+    # hidden_dim: !ref <encoder_dim>
+    freeze: !ref <freeze_embedding>
+    init: !ref <pretrain_embeddings>
+
+attention_mlp: !new:model.custom_model.AttentionMLP
+    input_dim: !ref <encoder_dim>
+    hidden_dim: !ref <encoder_dim>
+
+encoder: !new:speechbrain.lobes.models.ECAPA_TDNN.ECAPA_TDNN
+    input_size: !ref <encoder_dim>
+    channels: [1024, 1024, 1024, 1024, 3072]
+    kernel_sizes: [5, 3, 3, 3, 1]
+    dilations: [1, 2, 3, 4, 1]
+    attention_channels: 64
+    lin_neurons: 192
+
+classifier: !new:torch.nn.Linear
+    in_features: 192
+    out_features: !ref <out_n_neurons>
+
+modules:
+    classifier: !ref <classifier>
+    encoder: !ref <encoder>
+    attention_mlp: !ref <attention_mlp>
+    discrete_embedding_layer: !ref <discrete_embedding_layer>
+
+model: !new:torch.nn.ModuleList
+    - [!ref <encoder>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
+
+compute_cost: !new:speechbrain.nnet.losses.LogSoftmaxWrapper
+    loss_fn: !new:speechbrain.nnet.losses.AdditiveAngularMargin
+        margin: 0.2
+        scale: 30
+
+model_opt_class: !name:torch.optim.Adam
+    lr: !ref <lr_model>
+
+scheduler: !new:speechbrain.nnet.schedulers.CyclicLRScheduler
+    base_lr: !ref <base_lr>
+    max_lr: !ref <max_lr>
+    step_size: !ref <step_size>
+
+############################## Logging and Pretrainer ##########################
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+error_stats: !name:speechbrain.utils.metric_stats.MetricStats
+    metric: !name:speechbrain.nnet.losses.classification_error
+        reduction: batch
+
+# The train logger writes training statistics to a file, as well as stdout.
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        model: !ref <model>
+        scheduler: !ref <scheduler>
+        counter: !ref <epoch_counter>

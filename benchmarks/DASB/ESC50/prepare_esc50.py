@@ -243,7 +243,7 @@ def create_json(metadata, audio_data_folder, folds_list, json_file):
 
                 # Create entry for this sample ONLY if we have successfully read-in the file using SpeechBrain/torchaudio
                 json_dict[ID] = {
-                    "wav": os.path.join("$data_root",sample_metadata["filename"]),
+                    "wav": os.path.join(audio_data_folder,sample_metadata["filename"]),
                     "classID": int(sample_metadata["target"]),
                     "class_string": sample_metadata["class_string"],
                     # "salience": int(sample_metadata["salience"]),
