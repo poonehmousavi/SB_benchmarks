@@ -44,11 +44,16 @@ class SpeakerBrain(sb.core.Brain):
             in_toks
         )  # [B, T, N-Q, D]
 
-        # Attention-Pooling
-        att_w = self.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
-        in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
-            -2
-        )  # [B, T, D]
+        # Get merged embedding based on strategy set, defualt Att_Pooling
+        if  hasattr(self.hparams,'embedding_strg') and  self.hparams.embedding_strg == 'concat':
+            B, T, N_Q, D = in_embs.shape
+            in_embs = in_embs.view(B,T,N_Q *D)
+
+        else:
+            att_w = self.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
+            in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
+                -2
+            )  # [B, T, D]
 
         # forward modules
         enc_out = self.modules.encoder(in_embs, wav_lens)

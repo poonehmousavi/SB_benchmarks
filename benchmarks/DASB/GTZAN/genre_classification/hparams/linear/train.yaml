@@ -64,11 +64,13 @@ sample_rate: 24000
 
 # Feature parameters
 encoder_dim: 1024
-embedding_dim: 256
+embedding_dim: !ref <encoder_dim> 
 # If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
-embedding_strg: concat
+# if set to concat, you need to set embedding_dim to match the encoder_dim after concatenation. Eg, if you have 4 codebook, embedding_dim shoudl set to encoder_dim/4
+embedding_strg: att_pool # option are concat and att_pool
+
 # Number of classes
 out_n_neurons: 10
 
