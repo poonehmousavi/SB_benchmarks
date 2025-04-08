@@ -112,8 +112,12 @@ def get_verification_scores(veri_test):
         lab_pair = int(line.split(" ")[0].rstrip().split(".")[0].strip())
         enrol_id = line.split(" ")[1].rstrip().split(".")[0].strip()
         test_id = line.split(" ")[2].rstrip().split(".")[0].strip()
-        enrol = enrol_dict[enrol_id]
-        test = test_dict[test_id]
+        enrol = enrol_dict.get(enrol_id)
+        test = test_dict.get(test_id)
+
+        if enrol is None or test is None:
+            logger.warn(f"{test_id} not foundt in test.csv")
+            continue  # Skip if either ID is missing
 
         if "score_norm" in hparams:
             # Getting norm stats for enrol impostors
