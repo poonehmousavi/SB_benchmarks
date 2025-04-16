@@ -282,8 +282,6 @@ class SpeakerBrain(sb.core.Brain):
             in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
                 -2
             )  # [B, T, D]
-
-
                     # forward modules
         if (
             "encoder" in self.modules
