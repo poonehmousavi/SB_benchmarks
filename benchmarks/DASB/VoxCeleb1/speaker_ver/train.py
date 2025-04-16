@@ -58,7 +58,16 @@ def compute_embedding(in_toks, wav_lens):
             )  # [B, T, D]
 
 
-        embeddings = speaker_brain.modules.encoder(in_embs, wav_lens)
+        
+        if (
+            "encoder" in speaker_brain.modules
+            and type(speaker_brain.modules.encoder).__name__ == "Sequential"
+        ):
+            embeddings = speaker_brain.modules.encoder(in_embs)
+            embeddings = speaker_brain.hparams.avg_pool(embeddings, wav_lens)
+            embeddings = embeddings.view(embeddings.shape[0], -1)
+        else:
+            embeddings = speaker_brain.modules.encoder(in_embs, wav_lens)
 
     return embeddings.squeeze(1)
 
@@ -200,7 +209,7 @@ def dataio_prep_verif(params):
 
     datasets = [train_data, enrol_data, test_data]
 
-    # 1. Define tokens pipeline:
+    # # 1. Define tokens pipeline:
     tokens_loader = hparams["tokens_loader"]
     num_codebooks = hparams["num_codebooks"]
 
@@ -232,7 +241,7 @@ def dataio_prep_verif(params):
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
 
     # 3. Set output:
-    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig", "speech_tokens"])
+    sb.dataio.dataset.set_output_keys(datasets, ["id", "sig","speech_tokens"])
 
     # 4 Create dataloaders
     train_dataloader = sb.dataio.dataloader.make_dataloader(
@@ -274,18 +283,32 @@ class SpeakerBrain(sb.core.Brain):
                 -2
             )  # [B, T, D]
 
-        enc_out = self.modules.encoder(in_embs, wav_lens)
-        outputs = self.modules.classifier(enc_out)
-        return outputs, wav_lens
+
+                    # forward modules
+        if (
+            "encoder" in self.modules
+            and type(self.modules.encoder).__name__ == "Sequential"
+        ):
+            enc_out = self.modules.encoder(in_embs)
+            outputs = self.hparams.avg_pool(enc_out, wav_lens)
+            outputs = outputs.view(outputs.shape[0], -1)
+            outputs = self.modules.classifier(outputs).unsqueeze(1)
+            # outputs = self.hparams.log_softmax(outputs).unsqueeze(1)
+
+        else:
+            enc_out = self.modules.encoder(in_embs, wav_lens)
+            outputs = self.modules.classifier(enc_out)
+
+        return outputs
 
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss using speaker-id as label.
         """
-        predictions, lens = predictions
+        predictions= predictions
         uttid = batch.id
         spkid, _ = batch.spk_id_encoded
 
-        loss = self.hparams.compute_cost(predictions, spkid, lens)
+        loss = self.hparams.compute_cost(predictions, spkid)
 
         if stage == sb.Stage.TRAIN and hasattr(
             self.hparams.scheduler, "on_batch_end"
@@ -293,7 +316,7 @@ class SpeakerBrain(sb.core.Brain):
             self.hparams.scheduler.on_batch_end(self.optimizer)
 
         if stage != sb.Stage.TRAIN:
-            self.error_metrics.append(uttid, predictions, spkid, lens)
+            self.error_metrics.append(uttid, predictions, spkid)
 
         return loss
 
@@ -418,7 +441,7 @@ def dataio_prep(hparams):
 
     # 4. Set output:
     sb.dataio.dataset.set_output_keys(
-        datasets, ["id", "sig", "spk_id_encoded", "speech_tokens"]
+        datasets, ["id", "sig", "spk_id_encoded","speech_tokens"]
     )
 
     return train_data, valid_data, label_encoder
