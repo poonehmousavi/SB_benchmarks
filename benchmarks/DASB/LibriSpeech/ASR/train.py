@@ -198,8 +198,8 @@ class ASR(sb.Brain):
             )
             self.checkpointer.save_and_keep_only(
                 meta={"ACC": stage_stats["ACC"], "epoch": epoch},
-                min_keys=["ACC"],
-                num_to_keep=self.hparams.avg_checkpoints,
+                max_keys=["ACC"],
+                num_to_keep=1,
             )
 
         elif stage == sb.Stage.TEST:
@@ -212,6 +212,11 @@ class ASR(sb.Brain):
                     self.hparams.output_wer_folder, "w", encoding="utf-8"
                 ) as w:
                     self.wer_metric.write_stats(w)
+                self.checkpointer.save_and_keep_only(
+                    meta={"ACC": 1.1, "epoch": epoch},
+                    max_keys=["ACC"],
+                    num_to_keep=1,
+                )
 
     def on_fit_batch_end(self, batch, outputs, loss, should_step):
         if (
@@ -505,5 +510,5 @@ if __name__ == "__main__":
             asr_brain.evaluate(
                 test_datasets[k],
                 test_loader_kwargs=hparams["test_dataloader_opts"],
-                min_key="ACC",
+                max_key="ACC",
             )

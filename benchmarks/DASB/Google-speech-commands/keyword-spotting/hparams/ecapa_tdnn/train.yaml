@@ -64,11 +64,13 @@ sample_rate: 24000
 # Feature parameters
 encoder_dim: 1024
 embedding_dim: !ref <encoder_dim> 
+hidden_dim: !ref <embedding_dim> 
 # If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
 # if set to concat, you need to set embedding_dim to match the encoder_dim after concatenation. Eg, if you have 4 codebook, embedding_dim shoudl set to encoder_dim/4
 embedding_strg: att_pool # option are concat and att_pool
+scalar_embeddings: False
 
 # Number of classes (i.e. different commands)
 out_n_neurons: !ref <number_of_commands>  #includes core commands & auxiliary words
@@ -78,12 +80,13 @@ tokens_loader: !new:utils.tokens.TokensLoader
     data_path: !ref <tokens_folder>
 
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
-    num_codebooks: !ref <num_codebooks>
-    vocab_size: !ref <vocab_size>
-    emb_dim: !ref <embedding_dim>
-    # hidden_dim: !ref <encoder_dim>
-    freeze: !ref <freeze_embedding>
-    init: !ref <pretrain_embeddings>
+   num_codebooks: !ref <num_codebooks>
+   vocab_size: !ref <vocab_size>
+   emb_dim: !ref <embedding_dim>
+   hidden_dim: !ref <hidden_dim>
+   freeze: !ref <freeze_embedding>
+   init: !ref <pretrain_embeddings>
+   scalar: !ref <scalar_embeddings>
 
 attention_mlp: !new:model.custom_model.AttentionMLP
     input_dim: !ref <encoder_dim>
