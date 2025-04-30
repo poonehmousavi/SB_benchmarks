@@ -118,7 +118,6 @@ modules:
     encoder: !ref <encoder>
     attention_mlp: !ref <attention_mlp>
     discrete_embedding_layer: !ref <discrete_embedding_layer>
-    softmax: !ref <softmax>
 
 model: !new:torch.nn.ModuleList
     - [!ref <encoder>, !ref <classifier>, !ref <discrete_embedding_layer>, !ref <attention_mlp>]
