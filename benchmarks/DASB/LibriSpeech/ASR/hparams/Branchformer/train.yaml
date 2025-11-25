@@ -26,7 +26,7 @@ cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
 # then data_folder_rirs should be /localscratch/xxx_corpus
 # otherwise the dataset will automatically be downloaded
 # data_folder_rirs: !ref <data_folder>
-train_splits: ["train-clean-100", "train-clean-360", "train-other-500"]
+train_splits: ["train-clean-100"]
 dev_splits: ["dev-clean"]
 test_splits: ["test-clean", "test-other"]
 skip_prep: False
@@ -102,8 +102,7 @@ sample_rate: 24000
 
 # Feature parameters
 encoder_dim: 1024
-embedding_dim: !ref <encoder_dim> 
-hidden_dim: !ref <embedding_dim> 
+hidden_dim: 1024
 # If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
@@ -152,8 +151,8 @@ tokens_loader: !new:utils.tokens.TokensLoader
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
    num_codebooks: !ref <num_codebooks>
    vocab_size: !ref <vocab_size>
-   emb_dim: !ref <embedding_dim>
-   hidden_dim: !ref <hidden_dim>
+   emb_dim: !ref <hidden_dim>
+   hidden_dim: !ref <encoder_dim>
    freeze: !ref <freeze_embedding>
    init: !ref <pretrain_embeddings>
    scalar: !ref <scalar_embeddings>
