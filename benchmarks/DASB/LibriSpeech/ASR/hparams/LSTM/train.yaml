@@ -13,8 +13,8 @@
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-run_name: !PLACEHOLDER
-output_folder: !ref results/LSTM/<run_name>/<seed>
+
+output_folder: !ref results/LSTM/tokenizer/<seed>
 output_wer_folder: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -103,7 +103,7 @@ sample_rate: 24000
 
 # Feature parameters
 encoder_dim: 1024
-embedding_dim: !ref <encoder_dim> 
+hidden_dim: 1024
 # If set to True, encoder_dim should match the dimension of the tokenizer. For Encodec, it is 128.
 pretrain_embeddings: False
 freeze_embedding: False
@@ -138,8 +138,8 @@ tokens_loader: !new:utils.tokens.TokensLoader
 discrete_embedding_layer: !new:model.custom_model.Discrete_EmbeddingLayer
    num_codebooks: !ref <num_codebooks>
    vocab_size: !ref <vocab_size>
-   emb_dim: !ref <embedding_dim>
-   # hidden_dim: !ref <encoder_dim>
+   emb_dim: !ref <hidden_dim>
+   hidden_dim: !ref <encoder_dim>
    freeze: !ref <freeze_embedding>
    init: !ref <pretrain_embeddings>
 

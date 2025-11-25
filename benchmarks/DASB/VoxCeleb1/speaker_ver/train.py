@@ -123,7 +123,11 @@ def get_verification_scores(veri_test):
         test_id = line.split(" ")[2].rstrip().split(".")[0].strip()
         enrol = enrol_dict.get(enrol_id)
         test = test_dict.get(test_id)
-
+        
+        if enrol is None or test is None:
+            logger.warn(f"{test_id} not foundt in test.csv")
+            continue  # Skip if either ID is missing
+        
         if enrol is None or test is None:
             logger.warn(f"{test_id} not foundt in test.csv")
             continue  # Skip if either ID is missing

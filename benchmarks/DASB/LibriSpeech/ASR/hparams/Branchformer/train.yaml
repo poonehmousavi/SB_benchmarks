@@ -13,8 +13,7 @@
 
 seed: 1986
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
-run_name: !PLACEHOLDER
-output_folder: !ref results/LSTM/<run_name>/<seed>
+output_folder: !ref results/branchformer/<seed>
 output_wer_folder: !ref <output_folder>/wer.txt
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
@@ -263,6 +262,7 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
       scheduler: !ref <scheduler>
       counter: !ref <epoch_counter>
 
+checkpoint_metric: ACC
 
 # Functions and classes
 epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter

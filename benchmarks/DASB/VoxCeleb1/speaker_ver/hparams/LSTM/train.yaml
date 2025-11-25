@@ -54,12 +54,15 @@ sentence_len: 3
 # Dataloader options
 train_dataloader_opts:
     batch_size: !ref <batch_size>
+    drop_last: True
 
 enrol_dataloader_opts:
     batch_size: !ref <batch_size>
+    drop_last: True
 
 test_dataloader_opts:
     batch_size: !ref <batch_size>
+    drop_last: True
 
 
 ckpt_interval_minutes: 15 # save checkpoint every N min

@@ -11,14 +11,14 @@ import sys
 import os
 import torch
 from abc import ABC, abstractmethod
-from speechbrain.lobes.models.huggingface_transformers.encodec import Encodec
-from speechbrain.lobes.models.huggingface_transformers.discrete_ssl import (
+from speechbrain.integrations.huggingface.encodec import Encodec
+from speechbrain.integrations.audio_tokenizers.discrete_ssl import (
     DiscreteSSL,
 )
 from speechbrain.lobes.models.discrete.dac import DAC
-from speechbrain.lobes.models.discrete.speechtokenizer import SpeechTokenizer
-from speechbrain.lobes.models.discrete.wavtokenizer import WavTokenizer
-from speechbrain.lobes.models.huggingface_transformers.mimi import Mimi
+from speechbrain.integrations.audio_tokenizers.speechtokenizer_interface import SpeechTokenizer
+from speechbrain.integrations.audio_tokenizers.wavtokenizer_interface import WavTokenizer
+from speechbrain.integrations.huggingface.mimi import Mimi
 
 base_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")

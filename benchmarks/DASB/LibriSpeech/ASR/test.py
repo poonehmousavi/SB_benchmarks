@@ -35,131 +35,75 @@ class ASR(sb.Brain):
         batch = batch.to(self.device)
         wavs, wav_lens = batch.sig
         in_toks, _ = batch.speech_tokens
-        tokens_bos, _ = batch.tokens_bos
 
         in_embs = self.modules.discrete_embedding_layer(
             in_toks
         )  # [B, T, N-Q, D]
 
-        # Get merged embedding based on strategy set, defualt Att_Pooling
-        if  hasattr(self.hparams,'embedding_strg') and  self.hparams.embedding_strg == 'concat':
-            B, T, N_Q, D = in_embs.shape
-            in_embs = in_embs.view(B,T,N_Q *D)
-
-        else:
-            att_w = self.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
-            in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
-                -2
-            )  # [B, T, D]
+        # Attention-Pooling
+        att_w = self.modules.attention_mlp(in_embs)  # [B, T, N-Q, 1]
+        in_embs = torch.matmul(att_w.transpose(2, -1), in_embs).squeeze(
+            -2
+        )  # [B, T, D]
 
         # forward modules
-        p_seq = None
         if type(self.modules.encoder).__name__ == "ContextNet":
             enc_out = self.modules.encoder(in_embs)
 
         elif type(self.modules.encoder).__name__ == "LSTM":
             enc_out, _ = self.modules.encoder(in_embs)
-        
-        elif type(self.modules.encoder).__name__ == "TransformerASR":
-            enc_out, pred = self.modules.encoder(in_embs, tokens_bos, wav_lens, pad_idx=self.hparams.pad_index)
-            pred = self.modules.seq_lin(pred)
-            p_seq = self.hparams.log_softmax(pred)
-            p_seq = p_seq
+
         else:
             raise NotImplementedError
 
         # output layer for ctc log-probabilities
         logits = self.modules.ctc_lin(enc_out)
         p_ctc = self.hparams.log_softmax(logits)
-        
-        hyps = None
-        current_epoch = self.hparams.epoch_counter.current
-        if  stage == sb.Stage.VALID and current_epoch % self.hparams.valid_search_interval == 0:
-            if type(self.modules.encoder).__name__ == "TransformerASR":
-                hyps, _, _, _ = self.hparams.valid_search(
-                    enc_out.detach(), wav_lens
+
+        p_tokens = None
+        if stage == sb.Stage.VALID:
+            p_tokens = sb.decoders.ctc_greedy_decode(
+                p_ctc, wav_lens, blank_id=self.hparams.blank_index
             )
-            else:
-                hyps = sb.decoders.ctc_greedy_decode(
-                    p_ctc, wav_lens, blank_id=self.hparams.blank_index
-                )
-
         elif stage == sb.Stage.TEST:
-            if type(self.modules.encoder).__name__ == "TransformerASR":
-                hyps, _, _, _ = self.hparams.test_search(
-                    enc_out.detach(), wav_lens
-                )
-            else:
-                hyps = test_searcher(p_ctc, wav_lens)
+            p_tokens = test_searcher(p_ctc, wav_lens)
 
-        
-        return p_ctc,p_seq, wav_lens, hyps
-    
+        return p_ctc, wav_lens, p_tokens
+
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss (CTC+NLL) given predictions and targets."""
 
-        p_ctc,p_seq, wav_lens, hyps = predictions
+        p_ctc, wav_lens, predicted_tokens = predictions
         ids = batch.id
         tokens, tokens_lens = batch.tokens
-        tokens_eos, tokens_eos_lens = batch.tokens_eos
 
         # Label Augmentation
         if stage == sb.Stage.TRAIN and hasattr(self.hparams, "wav_augment"):
             tokens = self.hparams.wav_augment.replicate_labels(tokens)
             tokens_lens = self.hparams.wav_augment.replicate_labels(tokens_lens)
 
-        # loss = self.hparams.ctc_cost(p_ctc, tokens, wav_lens, tokens_lens)
+        loss = self.hparams.ctc_cost(p_ctc, tokens, wav_lens, tokens_lens)
 
-        loss_ctc = self.hparams.ctc_cost(
-            p_ctc, tokens, wav_lens, tokens_lens
-        ).sum()
-
-        if "seq_cost" in hparams.keys():
-            loss_seq = self.hparams.seq_cost(
-                p_seq, tokens_eos, length=tokens_eos_lens
-            ).sum()
-            loss = (
-                self.hparams.ctc_weight * loss_ctc
-                + (1 - self.hparams.ctc_weight) * loss_seq
+        if stage == sb.Stage.VALID:
+            # Decode token terms to words
+            predicted_words = self.tokenizer(
+                predicted_tokens, task="decode_from_list"
             )
-        else:
-            loss = loss_ctc
+        elif stage == sb.Stage.TEST:
+            predicted_words = [
+                hyp[0].text.split(" ") for hyp in predicted_tokens
+            ]
 
         if stage != sb.Stage.TRAIN:
-            current_epoch = self.hparams.epoch_counter.current
-            valid_search_interval = self.hparams.valid_search_interval
-            if current_epoch % valid_search_interval == 0 or (
-                stage == sb.Stage.TEST
-            ):
-                if type(self.modules.encoder).__name__ == "TransformerASR":
-                # Decode token terms to words
-                    predicted_words = [
-                        tokenizer.sp.decode_ids(utt_seq).split(" ") for utt_seq in hyps
-                    ]
-                else:
-                    if stage == sb.Stage.VALID:
-                        # Decode token terms to words
-                        predicted_words = self.tokenizer(
-                            hyps, task="decode_from_list"
-                        )
-                    elif stage == sb.Stage.TEST:
-                        predicted_words = [
-                            hyp[0].text.split(" ") for hyp in hyps
-                        ]
-                target_words = [wrd.split(" ") for wrd in batch.wrd]
-                self.wer_metric.append(ids, predicted_words, target_words)
-                self.cer_metric.append(ids, predicted_words, target_words)
+            target_words = [wrd.split(" ") for wrd in batch.wrd]
+            self.wer_metric.append(ids, predicted_words, target_words)
+            self.cer_metric.append(ids, predicted_words, target_words)
 
-            # compute the accuracy of the one-step-forward prediction
-            if self.hparams.checkpoint_metric == 'ACC':
-                self.acc_metric.append(p_seq, tokens_eos, tokens_eos_lens)
         return loss
 
     def on_stage_start(self, stage, epoch):
         """Gets called at the beginning of each epoch"""
         if stage != sb.Stage.TRAIN:
-            if  self.hparams.checkpoint_metric == 'ACC':
-                self.acc_metric = self.hparams.acc_computer()
             self.cer_metric = self.hparams.cer_computer()
             self.wer_metric = self.hparams.wer_computer()
 
@@ -167,12 +111,11 @@ class ASR(sb.Brain):
         """Gets called at the end of a epoch."""
         # Compute/store important stats
         stage_stats = {"loss": stage_loss}
-       
         if stage == sb.Stage.TRAIN:
             self.train_stats = stage_stats
         else:
-            if self.hparams.checkpoint_metric == 'ACC':
-                stage_stats["ACC"] = self.acc_metric.summarize()
+            stage_stats["CER"] = self.cer_metric.summarize("error_rate")
+            stage_stats["WER"] = self.wer_metric.summarize("error_rate")
             current_epoch = self.hparams.epoch_counter.current
             valid_search_interval = self.hparams.valid_search_interval
             if (
@@ -180,14 +123,13 @@ class ASR(sb.Brain):
                 or stage == sb.Stage.TEST
             ):
                 stage_stats["WER"] = self.wer_metric.summarize("error_rate")
-                stage_stats["CER"] = self.cer_metric.summarize("error_rate")
 
         # log stats and save checkpoint at end-of-epoch
         if stage == sb.Stage.VALID:
             if type(self.hparams.scheduler).__name__ == "NewBobScheduler":
                 lr, new_lr = self.hparams.scheduler(stage_stats["loss"])
                 sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
-            elif type(self.hparams.scheduler).__name__ == "NoamScheduler":
+            elif type(self.hparams.scheduler).__name__ == "LinearNoamScheduler":
                 lr = self.hparams.scheduler.current_lr
             else:
                 raise NotImplementedError
@@ -203,21 +145,11 @@ class ASR(sb.Brain):
                 train_stats=self.train_stats,
                 valid_stats=stage_stats,
             )
-            
-            if self.hparams.checkpoint_metric == "ACC":
-                meta_key = "ACC"
-                meta_value = stage_stats.get("ACC")
-                extra = {"max_keys": ["ACC"], "num_to_keep": 1}
-            else:
-                meta_key = "WER"
-                meta_value = stage_stats.get("WER")
-                extra = {"min_keys": ["WER"], "num_to_keep": self.hparams.avg_checkpoints}
-
             self.checkpointer.save_and_keep_only(
-                meta={meta_key: meta_value, "epoch": epoch},
-                **extra,
+                meta={"WER": stage_stats["WER"], "epoch": epoch},
+                min_keys=["WER"],
+                num_to_keep=self.hparams.avg_checkpoints,
             )
-
 
         elif stage == sb.Stage.TEST:
             self.hparams.train_logger.log_stats(
@@ -229,17 +161,11 @@ class ASR(sb.Brain):
                     self.hparams.output_wer_folder, "w", encoding="utf-8"
                 ) as w:
                     self.wer_metric.write_stats(w)
-                if self.hparams.checkpoint_metric =="ACC":
-                    self.checkpointer.save_and_keep_only(
-                        meta={"ACC": 1.1, "epoch": epoch},
-                        max_keys=["ACC"],
-                        num_to_keep=1,
-                    )
 
     def on_fit_batch_end(self, batch, outputs, loss, should_step):
         if (
             should_step
-            and type(self.hparams.scheduler).__name__ == "NoamScheduler"
+            and type(self.hparams.scheduler).__name__ == "LinearNoamScheduler"
         ):
             self.hparams.scheduler(self.optimizer)
 
@@ -319,18 +245,17 @@ def dataio_prepare(hparams, tokenizer):
 
     sb.dataio.dataset.add_dynamic_item(datasets, audio_pipeline)
 
+    # 3. Define text pipeline:
     @sb.utils.data_pipeline.takes("wrd")
     @sb.utils.data_pipeline.provides(
-        "wrd", "tokens_list", "tokens_bos", "tokens_eos", "tokens"
+        "wrd", "char_list", "tokens_list", "tokens"
     )
     def text_pipeline(wrd):
         yield wrd
+        char_list = list(wrd)
+        yield char_list
         tokens_list = tokenizer.sp.encode_as_ids(wrd)
         yield tokens_list
-        tokens_bos = torch.LongTensor([hparams["bos_index"]] + (tokens_list))
-        yield tokens_bos
-        tokens_eos = torch.LongTensor(tokens_list + [hparams["eos_index"]])
-        yield tokens_eos
         tokens = torch.LongTensor(tokens_list)
         yield tokens
 
@@ -338,7 +263,7 @@ def dataio_prepare(hparams, tokenizer):
 
     # 4. Set output:
     sb.dataio.dataset.set_output_keys(
-        datasets, ["id", "sig", "wrd", "tokens_bos", "tokens_eos", "tokens","speech_tokens"],
+        datasets, ["id", "sig", "wrd", "char_list", "tokens", "speech_tokens"],
     )
 
     # 5. If Dynamic Batching is used, we instantiate the needed samplers.
@@ -467,8 +392,6 @@ if __name__ == "__main__":
         },
     )
 
-    hparams['checkpoint_metric'] = hparams.get("checkpoint_metric", "WER") # safe default
-
     # Trainer initialization
     asr_brain = ASR(
         modules=hparams["modules"],
@@ -486,11 +409,9 @@ if __name__ == "__main__":
 
     from speechbrain.decoders.ctc import CTCBeamSearcher
 
-    if 'test_beam_search' in hparams.keys():
-        print(hparams.keys())
-        test_searcher = CTCBeamSearcher(
-            **hparams["test_beam_search"], vocab_list=vocab_list,
-        )
+    test_searcher = CTCBeamSearcher(
+        **hparams["test_beam_search"], vocab_list=vocab_list,
+    )
 
     train_dataloader_opts = hparams["train_dataloader_opts"]
     valid_dataloader_opts = hparams["valid_dataloader_opts"]
@@ -529,13 +450,8 @@ if __name__ == "__main__":
             asr_brain.hparams.output_wer_folder = os.path.join(
                 hparams["output_wer_folder"], f"wer_{k}.txt"
             )
-            metric_config = {
-            "ACC": {"max_key": "ACC"},
-            "WER": {"min_key": "WER"},
-             }
-
             asr_brain.evaluate(
                 test_datasets[k],
                 test_loader_kwargs=hparams["test_dataloader_opts"],
-                **metric_config.get(hparams['checkpoint_metric'], {"min_key": "WER"}),
+                min_key="WER",
             )
