@@ -11,6 +11,9 @@ import sys
 import os
 import torch
 from abc import ABC, abstractmethod
+from audiocraft.solvers import FlexiCodecSolver
+from omegaconf import DictConfig
+from audiocraft.solvers.builders import get_audio_datasets, DatasetType
 from speechbrain.integrations.huggingface.encodec import Encodec
 from speechbrain.integrations.audio_tokenizers.discrete_ssl import (
     DiscreteSSL,
@@ -513,3 +516,94 @@ class SQCodecTokenizer(SQCodec, BaseTokenizer):
         raise ValueError(
             "SQCodec does not have any trainable quantizer or embedding since it uses scalar quantization."
         )
+
+# You coudl replace with your wrapper just make sure the dim is working
+class FlexiTokenizer(torch.nn.Module,BaseTokenizer):
+    """This is a wrapper for the FlexiCodec implemented in the SpeechBrain main repository.
+
+    Source paper:
+        
+    Example
+    -------
+    >>> checkpoint_path = "/xps/b116d5d6/checkpoint.th"
+    >>> device = "cuda"
+    >>> model = FlexiTokenizer(checkpoint_path=checkpoint_path, device=device)
+    >>> emb=model.get_pretrained_embeddings()
+    >>> emb.shape
+    torch.Size([16384, 128])
+    >>> audio = torch.randn(4, 1000).to(device)
+    >>> tokens= model.sig_to_tokens(audio)
+    >>> tokens.shape
+    torch.Size([4, 2, 16])
+    >>> rec = model.tokens_to_sig(tokens)
+    >>> rec.shape
+    torch.Size([4, 1280])
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        BaseTokenizer.__init__(self)
+        self.device = kwargs['device']
+        self.model = FlexiCodecSolver.model_from_checkpoint(kwargs['checkpoint_path']).to(self.device)
+        self.sample_rate =  kwargs['sample_rate']
+
+
+    @torch.no_grad()
+    def sig_to_tokens(self, signal, lengths=None, num_codebooks=None, **kwargs):
+        self.model.eval()
+        if signal.ndim == 2:
+            signal = signal.unsqueeze(1)
+        x, scale = self.model.preprocess(signal)
+        emb: torch.Tensor = self.model.encoder(x).permute(0, 2, 1)
+        z_ac = self.model.acoustic_proj_in(emb).permute(0, 2, 1)
+        z_sem = self.model.sem_proj_in(emb).permute(0, 2, 1)
+        q_res_ac = self.model.quantizer(z_ac, self.model.frame_rate).codes.transpose(1,2)
+        q_res_sem = self.model.quantizer_sem(z_sem, self.model.frame_rate).codes.transpose(1,2)
+        tokens = torch.cat([q_res_sem, q_res_ac], dim=-1)
+        #  eNCODEC ARCH
+        # q_res = self.model.quantizer(emb, self.model.frame_rate)
+        # tokens= q_res.codes.transpose(1,2) # B, T, C
+        if num_codebooks:
+            if tokens.shape[-1] < num_codebooks:
+                raise ValueError(
+                    f"Model only outputs {tokens.shape[-1]} codebooks, but {num_codebooks} requested"
+                )
+            tokens = tokens[..., :num_codebooks]
+        return tokens
+
+    @torch.no_grad()
+    def tokens_to_sig(self, tokens, **kwargs):
+        self.model.eval()
+        # NEED TO BE ADOPTED FOR MIMI
+        signal = self.model.decode(tokens.transpose(1,2))
+        return signal.transpose(1,2).squeeze(-1)
+
+    @torch.no_grad()
+    def get_pretrained_embeddings(
+        self, vocab_size=None, num_codebooks=None, **kwargs
+    ):
+    
+        # toks = torch.arange(self.model.quantizer.bins).to(self.device)
+        # num_codebooks= self.model.quantizer.num_codebooks + self.model.quantizer_sem.num_codebooks
+        # toks = toks[:, None, None].expand(-1, num_codebooks, -1).clone()
+        # embeddings = self.model.decode_latent(toks.permute(1,2,0)).transpose(1,2)
+        # return embeddings.reshape(-1, embeddings.shape[-1])
+        toks = torch.arange(self.model.quantizer.bins).to(self.device)
+        n_sem_cbs = self.model.quantizer_sem.num_codebooks
+        num_codebooks= self.model.quantizer.num_codebooks + self.model.quantizer_sem.num_codebooks
+        toks = toks[:, None, None].expand(-1, num_codebooks, -1).clone().permute(1,2,0)
+        z_sem = self.model.quantizer_sem.decode(toks[:n_sem_cbs])
+        z_ac = self.model.quantizer.decode(toks[n_sem_cbs:])
+        z_sem = self.model.sem_proj_out(z_sem.permute(0, 2, 1)).permute(0, 2, 1)
+        z_ac = self.model.acoustic_proj_out(z_ac.permute(0, 2, 1)).permute(0, 2, 1)
+        embeddings = torch.cat([z_sem, z_ac], dim=0).transpose(1,2)
+
+        return embeddings.reshape(-1, embeddings.shape[-1])
+
+# checkpoint_path = "/home/mila/a/ali.parviz/scratch/FlexiTokenizer/output/audiocraft_ali.parviz/xps/d26276c4/checkpoint.th"
+# device = "cuda"
+# model = FlexiTokenizer(checkpoint_path=checkpoint_path, sample_rate=16000, device=device)
+# emb=model.get_pretrained_embeddings()
+# audio = torch.randn(4, 1000).to(device)
+# tokens= model.sig_to_tokens(audio)
+# rec = model.tokens_to_sig(tokens)

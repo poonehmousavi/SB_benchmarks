@@ -27,15 +27,15 @@ cached_data_folder: !PLACEHOLDER # e.g., path/to/cache
 # then data_folder_rirs should be /localscratch/xxx_corpus
 # otherwise the dataset will automatically be downloaded
 # data_folder_rirs: !ref <data_folder>
-train_splits: ["train-clean-100"] #["train-clean-100", "train-clean-360", "train-other-500"]
+train_splits: ["train-clean-100", "train-clean-360", "train-other-500"]
 dev_splits: ["dev-clean"]
-test_splits: ["dev-clean", "test-clean", "test-other"]
+test_splits: ["test-clean", "test-other"]
 skip_prep: False
 train_csv: !ref <cached_data_folder>/train.csv
 valid_csv: !ref <cached_data_folder>/dev-clean.csv
 test_csv:
-   - !ref <cached_data_folder>/dev-clean.csv
    - !ref <cached_data_folder>/test-clean.csv
+   - !ref <cached_data_folder>/test-other.csv
 
 tokens_folder: !PLACEHOLDER  # Path to the folder where extracted tokens are saved.
 pretrain_embeddings_folder: none  # Optional: If pretrain_embeddings is True, this should be set to the path where the pretrained embeddings are saved.
